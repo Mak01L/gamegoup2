@@ -51,6 +51,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
   useEffect(() => {
     let channel: any;
     let isMounted = true;
+    
     const fetchMessages = async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -58,81 +59,126 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
         .select('*')
         .eq('room_id', room.id)
         .order('created_at', { ascending: true });
-      if (!error && isMounted) setMessages(data || []);
+      if (!error && isMounted) {
+        setMessages(data || []);
+        console.log(`Loaded ${data?.length || 0} messages for room ${room.id}`);
+      }
       setLoading(false);
     };
+    
     fetchMessages();
-    // Suscripción realtime robusta
-    channel = supabase.channel('room-messages-' + room.id)
+    
+    // Create unique channel name with timestamp to avoid conflicts
+    const channelName = `room-messages-${room.id}-${Date.now()}`;
+    console.log(`Creating channel: ${channelName}`);
+    
+    channel = supabase
+      .channel(channelName)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room.id}` },
-        payload => {
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages', 
+          filter: `room_id=eq.${room.id}` 
+        },
+        (payload) => {
+          console.log('New message received:', payload.new);
           setMessages(msgs => {
             // Previene duplicados
-            if (msgs.some(m => m.id === payload.new.id)) return msgs;
+            if (msgs.some(m => m.id === payload.new.id)) {
+              console.log('Duplicate message ignored');
+              return msgs;
+            }
+            console.log('Adding new message to chat');
             return [...msgs, payload.new as Message];
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Channel ${channelName} status:`, status);
+      });
+    
     return () => {
       isMounted = false;
-      if (channel) supabase.removeChannel(channel);
+      if (channel) {
+        console.log(`Removing channel: ${channelName}`);
+        supabase.removeChannel(channel);
+      }
     };
   }, [room.id]);
 
   // Fetch users helper (must be defined before use)
   const fetchUsers = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('room_users')
-      .select('id, user_id, is_owner, joined_at, profiles:profiles(username,email,avatar_url)')
-      .eq('room_id', room.id);
-    let usersList = [];
-    if (!error && data) {
-      usersList = data.map((u: any) => ({ ...u, profile: u.profiles }));
+    try {
+      const { data, error } = await supabase
+        .from('room_users')
+        .select('id, user_id, is_owner, joined_at, profiles:profiles(username,email,avatar_url)')
+        .eq('room_id', room.id);
+      
+      if (error) {
+        console.error('Error fetching room users:', error);
+        return;
+      }
+      
+      let usersList = [];
+      if (data) {
+        usersList = data.map((u: any) => ({ 
+          ...u, 
+          profile: u.profiles || { 
+            username: 'User', 
+            email: '', 
+            avatar_url: null 
+          }
+        }));
+      }
+      
+      console.log(`Room ${room.id} users:`, usersList.length, usersList);
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Exception in fetchUsers:', error);
     }
-    // Ensure current user is always present in the list if joined
-    if (authUser && !usersList.some(u => u.user_id === authUser.id)) {
-      usersList.push({
-        id: 'local',
-        user_id: authUser.id,
-        is_owner: false,
-        joined_at: new Date().toISOString(),
-        profile: { username: profile?.username, email: authUser.email, avatar_url: profile?.avatar_url }
-      });
-    }
-    setUsers(usersList);
-  }, [room.id, authUser, profile?.username]);
+  }, [room.id]);
 
   // Join room on mount (but don't leave on unmount - allow minimizing)
   useEffect(() => {
     const joinRoom = async () => {
       if (!authUser) return;
-      // 1. Upsert user profile
-      await supabase.from('profiles').upsert([
-        {
-          user_id: authUser.id,
-          username: profile?.username || authUser.email,
-          email: authUser.email,
-          avatar_url: profile?.avatar_url || null
+      try {
+        // 1. Ensure user profile exists first
+        const { error: profileError } = await supabase.from('profiles').upsert([
+          {
+            user_id: authUser.id,
+            username: profile?.username || authUser.email?.split('@')[0] || 'User',
+            email: authUser.email,
+            avatar_url: profile?.avatar_url || null
+          }
+        ], { onConflict: 'user_id' });
+        
+        if (profileError) {
+          console.error('Error creating/updating profile:', profileError);
+          return;
         }
-      ], { onConflict: 'user_id' });
-      // 2. Upsert room_users
-      console.log(`Adding user ${authUser.id} to room ${room.id}`);
-      const { error: roomUserError } = await supabase.from('room_users').upsert([
-        { room_id: room.id, user_id: authUser.id }
-      ], { onConflict: 'room_id,user_id' });
-      
-      if (roomUserError) {
-        console.error('Error adding user to room:', roomUserError);
-      } else {
-        console.log('User successfully added to room');
-        // Trigger manual update of room count
-        window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+        
+        // 2. Now safely add to room_users
+        console.log(`Adding user ${authUser.id} to room ${room.id}`);
+        const { error: roomUserError } = await supabase.from('room_users').upsert([
+          { room_id: room.id, user_id: authUser.id }
+        ], { onConflict: 'room_id,user_id' });
+        
+        if (roomUserError) {
+          console.error('Error adding user to room:', roomUserError);
+        } else {
+          console.log('User successfully added to room');
+          // Trigger manual update of room count
+          window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+        }
+        
+        // 3. Pin room in sidebar
+        addRoom({ id: room.id, name: room.name, game: room.game });
+      } catch (error) {
+        console.error('Error in joinRoom:', error);
       }
-      // 3. Pin room in sidebar
-      addRoom({ id: room.id, name: room.name, game: room.game });
     };
     
     if (authUser) {

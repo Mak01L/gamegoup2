@@ -188,7 +188,7 @@ const LoginRegister: React.FC = () => {
       <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #A78BFA 0%, transparent 70%)'}} />
       {/* Header */}
       <div className="mb-9 text-center z-20">
-        <h1 className="text-4xl md:text-5xl font-bold text-[#C084FC] tracking-wide mb-2 drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]">GameGoUp!</h1>
+        <img src="/logo.png" alt="GameGoUp Logo" className="h-20 mx-auto mb-4 drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
         <p className="text-lg text-[#A78BFA] font-medium m-0 drop-shadow-[0_0_4px_rgba(167,139,250,0.3)]">
           Connect, play, win. The easiest way to build your team.
         </p>

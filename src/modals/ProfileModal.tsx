@@ -71,30 +71,62 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
     onClose();
   };
 
-  // Refuerza: recarga siempre el perfil más reciente tras guardar
+  // Always fetch fresh data from database to ensure persistence
   const fetchProfile = async () => {
     const id = userId || authUser?.id;
     if (!id) return;
-    let data;
-    if (isSelf && selfProfile) {
-      data = selfProfile;
-    } else {
-      const { data: fetched } = await supabase.from('profiles').select('*').eq('user_id', id).single();
-      data = fetched;
+    
+    try {
+      console.log('Fetching profile for user:', id);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // If profile doesn't exist, create minimal one
+        if (error.code === 'PGRST116' && authUser) {
+          const minimalProfile = {
+            user_id: authUser.id,
+            username: authUser.email?.split('@')[0] || 'User'
+          };
+          await supabase.from('profiles').upsert(minimalProfile, { onConflict: 'user_id' });
+          // Retry fetch
+          const { data: retryData } = await supabase.from('profiles').select('*').eq('user_id', id).single();
+          if (retryData) {
+            populateFields(retryData);
+          }
+        }
+        return;
+      }
+      
+      if (data) {
+        console.log('Profile loaded:', data);
+        populateFields(data);
+      }
+    } catch (error) {
+      console.error('Exception fetching profile:', error);
     }
-    if (data) {
-      setAvatarUrl(data.avatar_url || '');
-      setBio(data.bio || '');
-      setBirthdate(data.birthdate || '');
-      setCountry(data.country || '');
-      setCity(data.city || '');
-      setGameTags(data.game_tags ? data.game_tags.split(',') : []);
-      setSteamCode(data.steam_code || '');
+  };
+  
+  const populateFields = (data: any) => {
+    setAvatarUrl(data.avatar_url || '');
+    setBio(data.bio || '');
+    setBirthdate(data.birthdate || '');
+    setCountry(data.country || '');
+    setCity(data.city || '');
+    setGameTags(data.game_tags ? data.game_tags.split(',').filter(Boolean) : []);
+    setSteamCode(data.steam_code || '');
+    try {
       setSocialLinks(data.social_links ? JSON.parse(data.social_links) : []);
-      setEmail(data.email || '');
-      setUsername(data.username || '');
-      setCreatedAt(data.created_at || '');
+    } catch {
+      setSocialLinks([]);
     }
+    setEmail(data.email || '');
+    setUsername(data.username || '');
+    setCreatedAt(data.created_at || '');
   };
 
   useEffect(() => {
@@ -103,45 +135,63 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   }, [userId, authUser, selfProfile]);
 
   const handleSave = async () => {
+    if (!authUser) {
+      setError('User not authenticated');
+      return;
+    }
+    
     setError('');
     setSuccess('');
     setLoading(true);
-    let uploadedAvatarUrl = avatarUrl;
-    const { error: updateError } = await supabase.from('profiles').update({
-      avatar_url: uploadedAvatarUrl,
-      bio,
-      birthdate: birthdate === '' ? null : birthdate,
-      country,
-      city,
-      game_tags: gameTags.join(','),
-      steam_code: steamCode,
-      social_links: JSON.stringify(socialLinks),
-    }).eq('user_id', authUser.id);
-    setLoading(false);
-    if (updateError) {
-      setError(updateError.message || 'Error updating profile.');
-    } else {
-      setSuccess('Profile updated!');
-      setEditMode(false);
-      // Refuerza: recarga el perfil actualizado desde Supabase y actualiza el contexto
-      const { data: updated } = await supabase.from('profiles').select('*').eq('user_id', authUser.id).single();
-      if (isSelf && setProfile && updated) {
-        setProfile(updated);
+    
+    try {
+      // Prepare all data for saving (excluding email as it's not in profiles table)
+      const profileData = {
+        user_id: authUser.id,
+        username: username || authUser.email?.split('@')[0] || 'User',
+        avatar_url: avatarUrl || null,
+        bio: bio || null,
+        birthdate: birthdate || null,
+        country: country || null,
+        city: city || null,
+        game_tags: gameTags.length > 0 ? gameTags.join(',') : null,
+        steam_code: steamCode || null,
+        social_links: socialLinks.length > 0 ? JSON.stringify(socialLinks) : null
+      };
+      
+      console.log('Saving profile data:', profileData);
+      
+      // Use upsert to ensure data is saved even if profile doesn't exist
+      const { error: updateError, data: savedData } = await supabase
+        .from('profiles')
+        .upsert(profileData, { 
+          onConflict: 'user_id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('Profile save error:', updateError);
+        setError(`Error saving profile: ${updateError.message}`);
+      } else {
+        console.log('Profile saved successfully:', savedData);
+        setSuccess('Profile saved successfully!');
+        setEditMode(false);
+        
+        // Update context with saved data
+        if (isSelf && setProfile && savedData) {
+          setProfile(savedData);
+        }
+        
+        // Refresh local state with confirmed saved data
+        await fetchProfile();
       }
-      // Refresca el estado local con los datos más recientes
-      if (updated) {
-        setAvatarUrl(updated.avatar_url || '');
-        setBio(updated.bio || '');
-        setBirthdate(updated.birthdate || '');
-        setCountry(updated.country || '');
-        setCity(updated.city || '');
-        setGameTags(updated.game_tags ? updated.game_tags.split(',') : []);
-        setSteamCode(updated.steam_code || '');
-        setSocialLinks(updated.social_links ? JSON.parse(updated.social_links) : []);
-        setEmail(updated.email || '');
-        setUsername(updated.username || '');
-        setCreatedAt(updated.created_at || '');
-      }
+    } catch (error) {
+      console.error('Exception saving profile:', error);
+      setError('Unexpected error saving profile');
+    } finally {
+      setLoading(false);
     }
   };
 

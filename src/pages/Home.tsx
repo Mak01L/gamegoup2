@@ -167,8 +167,12 @@ const Home: React.FC = () => {
         <div className="absolute top-6 right-8 z-10">
           <UserMenu />
         </div>
+        {/* Logo */}
+        <div className="text-center mb-6 mt-4">
+          <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
+        </div>
         {/* Filtros y botones */}
-        <div className="w-full max-w-[540px] mx-auto bg-[#281e46]/[0.55] rounded-2xl shadow-lg p-7 mt-8 mb-4 relative">
+        <div className="w-full max-w-[540px] mx-auto bg-[#281e46]/[0.55] rounded-2xl shadow-lg p-7 mb-4 relative">
           <AdBanner position="top" />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
           <div className="flex justify-end mt-4">
@@ -212,11 +216,26 @@ const Home: React.FC = () => {
                     : 'bg-gradient-to-r from-purple-300 to-purple-200 text-[#18122B] cursor-pointer hover:from-purple-400 hover:to-purple-300'}`}
                   disabled={pinnedRooms.some((r: Room) => r.id === room.id)}
                   onClick={async () => {
-                    // Add user to room_users when joining
+                    // Ensure profile exists before joining room
                     if (authUser) {
-                      await supabase.from('room_users').upsert([
+                      // Create/update profile first
+                      await supabase.from('profiles').upsert([
+                        {
+                          user_id: authUser.id,
+                          username: authUser.email?.split('@')[0] || 'User',
+                          email: authUser.email
+                        }
+                      ], { onConflict: 'user_id' });
+                      
+                      // Then add to room_users
+                      const { error } = await supabase.from('room_users').upsert([
                         { room_id: room.id, user_id: authUser.id }
                       ], { onConflict: 'room_id,user_id' });
+                      
+                      if (!error) {
+                        // Trigger manual update of room count
+                        window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+                      }
                     }
                     addRoom({ id: room.id, name: room.name, game: room.game });
                   }}
