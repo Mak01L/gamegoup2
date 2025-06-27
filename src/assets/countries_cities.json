@@ -1,0 +1,12 @@
+{
+  "Argentina": ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "La Plata"],
+  "México": ["Ciudad de México", "Guadalajara", "Monterrey", "Puebla", "Tijuana"],
+  "España": ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza"],
+  "Chile": ["Santiago", "Valparaíso", "Concepción", "La Serena", "Antofagasta"],
+  "Colombia": ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"],
+  "Perú": ["Lima", "Arequipa", "Trujillo", "Cusco", "Chiclayo"],
+  "Estados Unidos": ["New York", "Los Angeles", "Chicago", "Houston", "Miami"],
+  "Brasil": ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador", "Fortaleza"],
+  "Uruguay": ["Montevideo", "Salto", "Paysandú", "Las Piedras", "Rivera"],
+  "Venezuela": ["Caracas", "Maracaibo", "Valencia", "Barquisimeto", "Maracay"]
+}

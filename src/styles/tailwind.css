@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #181A20;
+  --color-accent-blue: #3B82F6;
+  --color-accent-green: #22D3EE;
+  --color-accent-purple: #A78BFA;
+  --color-accent-orange: #F59E42;
+  
+  --font-family-gamer: "Orbitron", sans-serif;
+}
