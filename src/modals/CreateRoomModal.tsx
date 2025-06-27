@@ -54,23 +54,38 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ onClose, onRoomCreate
       setLoading(false);
       return;
     }
+    // Ensure profile exists first
+    await supabase.from('profiles').upsert([
+      {
+        user_id: realUserId,
+        username: authUser?.email?.split('@')[0] || 'User'
+      }
+    ], { onConflict: 'user_id' });
+    
     // Add user to room with retry logic
     let userAdded = false;
     let attempts = 0;
     
     while (!userAdded && attempts < 3) {
-      const { error: userError } = await supabase.from('room_users').insert({
-        room_id: room.id,
-        user_id: realUserId,
-        is_owner: true
-      });
+      const { error: userError, data: userData } = await supabase
+        .from('room_users')
+        .insert({
+          room_id: room.id,
+          user_id: realUserId,
+          is_owner: true
+        })
+        .select();
       
-      if (!userError) {
+      if (!userError && userData) {
+        console.log('Room creator added successfully:', userData);
         userAdded = true;
+        // Trigger room count update
+        window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
       } else {
         attempts++;
+        console.error(`Attempt ${attempts} failed:`, userError);
         if (attempts >= 3) {
-          setError('Error adding user to room: ' + userError.message);
+          setError('Error adding user to room: ' + userError?.message);
           setLoading(false);
           return;
         }
@@ -78,20 +93,7 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ onClose, onRoomCreate
       }
     }
     
-    // Verify user was added
-    const { data: verification } = await supabase
-      .from('room_users')
-      .select('id')
-      .eq('room_id', room.id)
-      .eq('user_id', realUserId)
-      .single();
-    
-    if (!verification) {
-      setError('Failed to verify user was added to room');
-      setLoading(false);
-      return;
-    }
-    
+    console.log(`Room created successfully: ${room.name} (${room.id})`);
     setLoading(false);
     if (onRoomCreated) onRoomCreated(room);
     addRoom({ id: room.id, name: room.name, game: room.game });

@@ -111,32 +111,78 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
   // Fetch users helper (must be defined before use)
   const fetchUsers = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      console.log(`Fetching users for room ${room.id}`);
+      
+      // First get room_users
+      const { data: roomUsers, error: roomUsersError } = await supabase
         .from('room_users')
-        .select('id, user_id, is_owner, joined_at, profiles:profiles(username,email,avatar_url)')
+        .select('id, user_id, is_owner, joined_at')
         .eq('room_id', room.id);
       
-      if (error) {
-        console.error('Error fetching room users:', error);
+      if (roomUsersError) {
+        console.error('Error fetching room_users:', roomUsersError);
         return;
       }
       
-      let usersList = [];
-      if (data) {
-        usersList = data.map((u: any) => ({ 
-          ...u, 
-          profile: u.profiles || { 
-            username: 'User', 
-            email: '', 
-            avatar_url: null 
-          }
-        }));
+      if (!roomUsers || roomUsers.length === 0) {
+        console.log(`No users found in room ${room.id}`);
+        setUsers([]);
+        return;
       }
       
-      console.log(`Room ${room.id} users:`, usersList.length, usersList);
-      setUsers(usersList);
+      console.log(`Found ${roomUsers.length} users in room_users table:`, roomUsers);
+      
+      // Then get profiles for each user, create if missing
+      const usersWithProfiles = await Promise.all(
+        roomUsers.map(async (roomUser) => {
+          let { data: profile } = await supabase
+            .from('profiles')
+            .select('username, email, avatar_url')
+            .eq('user_id', roomUser.user_id)
+            .single();
+          
+          // If no profile exists, try to create one
+          if (!profile) {
+            console.log(`Creating missing profile for user ${roomUser.user_id}`);
+            
+            // Try to get user info from auth to create profile
+            const { data: authUser } = await supabase.auth.getUser();
+            let username = 'User';
+            
+            // If it's the current user, we can get their email
+            if (authUser?.user?.id === roomUser.user_id && authUser.user.email) {
+              username = authUser.user.email.split('@')[0];
+            }
+            
+            // Create the profile
+            const { data: newProfile } = await supabase
+              .from('profiles')
+              .upsert({
+                user_id: roomUser.user_id,
+                username: username
+              }, { onConflict: 'user_id' })
+              .select()
+              .single();
+            
+            profile = newProfile;
+          }
+          
+          return {
+            ...roomUser,
+            profile: profile || {
+              username: 'User',
+              email: '',
+              avatar_url: null
+            }
+          };
+        })
+      );
+      
+      console.log(`Room ${room.id} users with profiles:`, usersWithProfiles);
+      setUsers(usersWithProfiles);
     } catch (error) {
       console.error('Exception in fetchUsers:', error);
+      setUsers([]);
     }
   }, [room.id]);
 
@@ -149,9 +195,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
         const { error: profileError } = await supabase.from('profiles').upsert([
           {
             user_id: authUser.id,
-            username: profile?.username || authUser.email?.split('@')[0] || 'User',
-            email: authUser.email,
-            avatar_url: profile?.avatar_url || null
+            username: profile?.username || authUser.email?.split('@')[0] || 'User'
           }
         ], { onConflict: 'user_id' });
         
@@ -235,30 +279,60 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
   const handleLeaveRoom = async () => {
     if (!authUser) return;
     
-    // Remove user from room
-    console.log(`Removing user ${authUser.id} from room ${room.id}`);
-    const { error: removeError } = await supabase.from('room_users').delete().eq('room_id', room.id).eq('user_id', authUser.id);
-    if (removeError) {
-      console.error('Error removing user from room:', removeError);
-    } else {
-      console.log('User successfully removed from room');
+    try {
+      // Remove user from room
+      console.log(`Removing user ${authUser.id} from room ${room.id}`);
+      const { error: removeError, data: removedData } = await supabase
+        .from('room_users')
+        .delete()
+        .eq('room_id', room.id)
+        .eq('user_id', authUser.id)
+        .select();
+      
+      if (removeError) {
+        console.error('Error removing user from room:', removeError);
+        return;
+      }
+      
+      console.log('User successfully removed from room:', removedData);
+      
       // Trigger manual update of room count
       window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
-    }
-    
-    // Check if room is empty and delete if necessary
-    const { data: usersLeft } = await supabase.from('room_users').select('id').eq('room_id', room.id);
-    if (!usersLeft || usersLeft.length === 0) {
-      await supabase.from('messages').delete().eq('room_id', room.id);
-      await supabase.from('rooms').delete().eq('id', room.id);
-    }
-    
-    // Remove from pinned rooms and close modal
-    removeRoom(room.id);
-    if (onRoomLeft) {
-      onRoomLeft(room.id);
-    } else {
-      onClose();
+      
+      // Check if room is empty and delete if necessary
+      const { data: usersLeft, error: countError } = await supabase
+        .from('room_users')
+        .select('id')
+        .eq('room_id', room.id);
+      
+      if (countError) {
+        console.error('Error checking remaining users:', countError);
+      } else {
+        console.log(`Users left in room ${room.id}:`, usersLeft?.length || 0);
+        
+        if (!usersLeft || usersLeft.length === 0) {
+          console.log('Room is empty, deleting...');
+          // Delete messages first
+          await supabase.from('messages').delete().eq('room_id', room.id);
+          // Then delete the room
+          const { error: roomDeleteError } = await supabase.from('rooms').delete().eq('id', room.id);
+          if (roomDeleteError) {
+            console.error('Error deleting empty room:', roomDeleteError);
+          } else {
+            console.log('Empty room deleted successfully');
+          }
+        }
+      }
+      
+      // Remove from pinned rooms and close modal
+      removeRoom(room.id);
+      if (onRoomLeft) {
+        onRoomLeft(room.id);
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Exception in handleLeaveRoom:', error);
     }
   };
 
@@ -332,26 +406,42 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
           <div className="bg-[#221b3a]/80 rounded-xl p-4 mt-2 border border-purple-800">
             <h3 className="text-md font-semibold text-purple-300 mb-3">Room Users</h3>
             <div className="flex flex-wrap gap-3">
-              {users.map(user => (
-                <div key={user.id} className="flex items-center gap-3 bg-[#232046]/80 px-3 py-2 rounded-lg border border-purple-800 min-w-[180px]">
-                  <img src={user.profile?.avatar_url || '/default-avatar.png'} alt={user.profile?.username || 'User'} className="w-9 h-9 rounded-full border-2 border-purple-400 object-cover" />
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className="font-semibold text-purple-200 truncate">{user.profile?.username || 'User'}</span>
-                    <span className="text-xs text-gray-400 truncate">{user.profile?.email}</span>
+              {users.length === 0 ? (
+                <div className="text-gray-400 text-sm">No users in this room</div>
+              ) : (
+                users.map(user => (
+                  <div key={user.id} className="flex items-center gap-3 bg-[#232046]/80 px-3 py-2 rounded-lg border border-purple-800 min-w-[180px]">
+                    <img 
+                      src={user.profile?.avatar_url || '/default-avatar.png'} 
+                      alt={user.profile?.username || 'User'} 
+                      className="w-9 h-9 rounded-full border-2 border-purple-400 object-cover bg-[#18122B]" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/default-avatar.png';
+                      }}
+                    />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-semibold text-purple-200 truncate">
+                        {user.profile?.username || 'User'}
+                      </span>
+                      <span className="text-xs text-gray-400 truncate">
+                        {user.profile?.email || `ID: ${user.user_id.slice(0, 8)}`}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {user.is_owner && (
+                        <span className="text-xs bg-gradient-to-r from-green-400 to-green-300 text-[#18122B] rounded-full px-2 py-0.5 font-bold mb-1">Owner</span>
+                      )}
+                      <button
+                        onClick={() => handleViewProfile(user.user_id)}
+                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full px-3 py-1 font-semibold shadow hover:from-blue-600 hover:to-purple-600"
+                      >
+                        View Profile
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {user.is_owner && (
-                      <span className="text-xs bg-gradient-to-r from-green-400 to-green-300 text-[#18122B] rounded-full px-2 py-0.5 font-bold mb-1">Owner</span>
-                    )}
-                    <button
-                      onClick={() => handleViewProfile(user.user_id)}
-                      className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full px-3 py-1 font-semibold shadow hover:from-blue-600 hover:to-purple-600"
-                    >
-                      View Profile
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

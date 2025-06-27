@@ -21,6 +21,7 @@ interface Room {
   description?: string;
   created_at: string;
   user_count?: number;
+  user_previews?: { username: string; avatar_url: string }[];
 }
 
 const initialFilters = {
@@ -124,14 +125,36 @@ const Home: React.FC = () => {
     if (error) {
       setError(error.message);
     } else if (data) {
-      // Get user count for each room
+      // Get user count and user previews for each room
       const roomsWithUserCount = await Promise.all(
         data.map(async (room) => {
-          const { data: users } = await supabase
+          const { data: roomUsers } = await supabase
             .from('room_users')
-            .select('id')
-            .eq('room_id', room.id);
-          return { ...room, user_count: users?.length || 0 };
+            .select('user_id')
+            .eq('room_id', room.id)
+            .limit(3); // Only get first 3 users for preview
+          
+          // Get profiles for preview users
+          const userPreviews = await Promise.all(
+            (roomUsers || []).map(async (roomUser) => {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('user_id', roomUser.user_id)
+                .single();
+              
+              return {
+                username: profile?.username || 'User',
+                avatar_url: profile?.avatar_url || '/default-avatar.png'
+              };
+            })
+          );
+          
+          return { 
+            ...room, 
+            user_count: roomUsers?.length || 0,
+            user_previews: userPreviews
+          };
         })
       );
       setRooms(roomsWithUserCount);
@@ -202,6 +225,26 @@ const Home: React.FC = () => {
                 <div className="text-purple-100 text-sm">{room.game}</div>
                 <div className="text-purple-100 text-xs">{room.region} | {room.language} {room.country ? `| ${room.country}` : ''}</div>
                 {room.description && <div className="text-gray-400 text-xs line-clamp-2">{room.description}</div>}
+                {/* User previews */}
+                {room.user_previews && room.user_previews.length > 0 && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="flex -space-x-2">
+                      {room.user_previews.map((user, index) => (
+                        <img
+                          key={index}
+                          src={user.avatar_url}
+                          alt={user.username}
+                          className="w-6 h-6 rounded-full border-2 border-purple-400 object-cover bg-[#18122B]"
+                          title={user.username}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-xs text-purple-300">
+                      {room.user_previews.map(user => user.username).join(', ')}
+                      {room.user_count && room.user_count > 3 && ` +${room.user_count - 3} more`}
+                    </div>
+                  </div>
+                )}
                 <div className="flex justify-between items-center mt-auto">
                   <div className="text-gray-400 text-xs">
                     Created: {new Date(room.created_at).toLocaleDateString()}
@@ -222,8 +265,7 @@ const Home: React.FC = () => {
                       await supabase.from('profiles').upsert([
                         {
                           user_id: authUser.id,
-                          username: authUser.email?.split('@')[0] || 'User',
-                          email: authUser.email
+                          username: authUser.email?.split('@')[0] || 'User'
                         }
                       ], { onConflict: 'user_id' });
                       
