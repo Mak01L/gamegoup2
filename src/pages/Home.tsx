@@ -6,6 +6,7 @@ import CreateRoomModal from '../modals/CreateRoomModal';
 import { supabase } from '../lib/supabaseClient';
 import AdBanner from '../components/AdBanner';
 import Footer from '../components/Footer';
+import BackgroundParticles from '../components/BackgroundParticles';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
@@ -154,6 +155,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white flex flex-row relative">
+      <BackgroundParticles />
       {/* Sidebar for pinned rooms */}
       <div className="min-w-[90px] max-w-[220px] w-[18vw] bg-[#281e46]/[0.55] border-r border-purple-400/30 flex flex-col z-20">
         <PinnedRoomsSidebar />

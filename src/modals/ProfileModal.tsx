@@ -182,8 +182,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-      <div className="bg-[#18122B] rounded-2xl p-8 w-full max-w-lg shadow-2xl text-white flex flex-col items-stretch font-inter relative">
+    <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50">
+      <div className="bg-[#18122B]/90 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl text-white flex flex-col items-stretch font-inter relative border border-purple-400/30">
         {/* Avatar y nombre */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative group">

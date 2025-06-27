@@ -1,8 +1,10 @@
 import React from 'react';
+import BackgroundParticles from '../components/BackgroundParticles';
 
 const TermsOfService: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white p-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white p-8 relative">
+      <BackgroundParticles />
       <div className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold text-purple-200 mb-8">Terms of Service</h1>
         <div className="bg-[#281e46]/[0.55] rounded-2xl p-8 space-y-6">

@@ -105,9 +105,8 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     setUsers(usersList);
   }, [room.id, authUser, profile?.username]);
 
-  // Join room on mount, leave on unmount
+  // Join room on mount (but don't leave on unmount - allow minimizing)
   useEffect(() => {
-    let joined = false;
     const joinRoom = async () => {
       if (!authUser) return;
       // 1. Upsert user profile
@@ -138,22 +137,9 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     
     if (authUser) {
       joinRoom();
-      joined = true;
     }
     
-    return () => {
-      const leaveAndMaybeDelete = async () => {
-        if (joined && authUser) {
-          await supabase.from('room_users').delete().eq('room_id', room.id).eq('user_id', authUser.id);
-          // Check if room is empty
-          const { data: usersLeft } = await supabase.from('room_users').select('id').eq('room_id', room.id);
-          if (!usersLeft || usersLeft.length === 0) {
-            await supabase.from('rooms').delete().eq('id', room.id);
-          }
-        }
-      };
-      leaveAndMaybeDelete();
-    };
+    // No cleanup - user stays in room when modal closes
   }, [room.id, authUser?.id]);
 
   // Subscribe to room users in real time

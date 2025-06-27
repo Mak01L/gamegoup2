@@ -3,6 +3,7 @@ import { supabase, reinitSupabaseClient } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileModal from '../modals/ProfileModal';
+import BackgroundParticles from '../components/BackgroundParticles';
 
 // Add Inter font to the document head
 if (!document.getElementById('inter-font')) {
@@ -181,6 +182,7 @@ const LoginRegister: React.FC = () => {
   // --- UI ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#18122B] via-[#6D28D9] to-[#A78BFA] font-inter p-4 text-[#F3E8FF] relative overflow-hidden">
+      <BackgroundParticles />
       {/* Futuristic Glow Effects */}
       <div className="absolute -top-10 -left-10 w-[400px] h-[400px] opacity-50 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #C084FC 0%, transparent 70%)'}} />
       <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #A78BFA 0%, transparent 70%)'}} />
@@ -317,10 +319,28 @@ const LoginRegister: React.FC = () => {
       {forceProfileUserId && (
         <ProfileModal
           userId={forceProfileUserId}
-          onClose={() => {
+          onClose={async () => {
+            // Create minimal profile and redirect without logging out
+            const { data: userData } = await supabase.auth.getUser();
+            if (userData?.user) {
+              // Create basic profile
+              await supabase.from('profiles').upsert([{
+                user_id: userData.user.id,
+                username: userData.user.email?.split('@')[0] || 'User',
+                email: userData.user.email
+              }], { onConflict: 'user_id' });
+              
+              // Set user context
+              setAuthUser(userData.user);
+              setProfile({
+                user_id: userData.user.id,
+                username: userData.user.email?.split('@')[0] || 'User',
+                email: userData.user.email
+              });
+            }
+            
             setForceProfileUserId(null);
-            setSuccess('Profile created! Redirecting...');
-            setTimeout(() => navigate('/'), 1200);
+            navigate('/');
           }}
         />
       )}
