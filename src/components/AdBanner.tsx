@@ -10,21 +10,16 @@ const AdBanner: React.FC<AdBannerProps> = ({ position = 'top' }) => {
   useEffect(() => {
     // Intenta renderizar el anuncio cuando AdSense esté disponible
     const pushAd = () => {
-      if (window['adsbygoogle'] && adRef.current) {
-        try {
-          // @ts-ignore
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          console.log('AdSense not ready yet');
-        }
+      try {
+        // @ts-ignore
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      } catch (e) {
+        // AdSense not available, ignore silently
       }
     };
 
-    // Intenta inmediatamente
-    pushAd();
-    
-    // Reintenta después de un delay si no funcionó
-    const timer = setTimeout(pushAd, 1000);
+    // Delay para asegurar que el DOM esté listo
+    const timer = setTimeout(pushAd, 2000);
     
     return () => clearTimeout(timer);
   }, []);
