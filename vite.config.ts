@@ -13,5 +13,8 @@ export default defineConfig({
         main: './index.html',
       },
     },
+    assetsDir: 'assets',
+    sourcemap: false,
   },
+  base: '/',
 })

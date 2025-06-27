@@ -1,2 +1,9 @@
+# Static files
 /ads.txt /ads.txt 200
+/assets/* /assets/:splat 200
+
+# API routes (if any)
+/api/* /api/:splat 200
+
+# SPA fallback
 /* /index.html 200
