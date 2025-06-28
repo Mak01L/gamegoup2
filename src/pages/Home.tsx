@@ -11,6 +11,8 @@ import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
 import GlareHover from '../components/GlareHover';
+import NotificationSystem from '../components/NotificationSystem';
+import { useUserPresence } from '../hooks/useUserPresence';
 
 interface Room {
   id: string;
@@ -42,6 +44,9 @@ const Home: React.FC = () => {
 
   const { rooms: pinnedRooms, addRoom } = usePinnedRoomsStore();
   const { authUser } = useUser();
+  
+  // Track user presence
+  useUserPresence();
 
   // Auto-refresh on mount to show current user counts
   useEffect(() => {
@@ -188,14 +193,15 @@ const Home: React.FC = () => {
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center py-8 relative">
         {/* User menu top right */}
-        <div className="absolute top-6 right-8 z-10">
+        <div className="absolute top-6 right-8 z-10 flex items-center gap-4">
+          <NotificationSystem />
           <UserMenu />
         </div>
         {/* Logo */}
         <div className="text-center mb-6 mt-4">
           <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
         </div>
-        {/* Filtros y botones */}
+        {/* Filters and buttons */}
         <div className="w-full max-w-[540px] mx-auto bg-[#281e46]/[0.55] rounded-2xl shadow-lg p-7 mb-4 relative">
           <AdBanner position="top" />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />

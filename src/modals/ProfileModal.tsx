@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
-// Debes crear este archivo JSON con la estructura { "País": ["Ciudad1", "Ciudad2", ...], ... }
-// Ejemplo: { "Argentina": ["Buenos Aires", "Córdoba"], "México": ["CDMX", "Guadalajara"] }
+import GlareHover from '../components/GlareHover';
+// You must create this JSON file with the structure { "Country": ["City1", "City2", ...], ... }
+// Example: { "Argentina": ["Buenos Aires", "Córdoba"], "Mexico": ["Mexico City", "Guadalajara"] }
 import countriesDataRaw from '../assets/countries_cities.json';
 
 // Ajuste de tipo para evitar error de indexación dinámica
@@ -32,7 +33,7 @@ const socialTypes = [
 const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   const { authUser, profile: selfProfile, setProfile } = useUser();
   const isSelf = !userId || userId === authUser?.id;
-  // El modal inicia en modo solo lectura si userId está presente
+  // The modal starts in read-only mode if userId is present
   const [editMode, setEditMode] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [bio, setBio] = useState('');
@@ -46,11 +47,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [createdAt, setCreatedAt] = useState('');
+  const [gender, setGender] = useState('');
+  const [sexualOrientation, setSexualOrientation] = useState('');
+  const [connectionTypes, setConnectionTypes] = useState<string[]>([]);
+  const [interests, setInterests] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Refuerza: limpiar estados locales al cerrar el modal
+  // Reinforces: clear local states when closing the modal
   const handleClose = () => {
     setEditMode(false);
     setAvatarUrl('');
@@ -127,6 +132,10 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
     setEmail(data.email || '');
     setUsername(data.username || '');
     setCreatedAt(data.created_at || '');
+    setGender(data.gender || '');
+    setSexualOrientation(data.sexual_orientation || '');
+    setConnectionTypes(data.connection_types || []);
+    setInterests(data.interests || []);
   };
 
   useEffect(() => {
@@ -156,7 +165,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         city: city || null,
         game_tags: gameTags.length > 0 ? gameTags.join(',') : null,
         steam_code: steamCode || null,
-        social_links: socialLinks.length > 0 ? JSON.stringify(socialLinks) : null
+        social_links: socialLinks.length > 0 ? JSON.stringify(socialLinks) : null,
+        gender: gender || null,
+        sexual_orientation: sexualOrientation || null,
+        connection_types: connectionTypes.length > 0 ? connectionTypes : null,
+        interests: interests.length > 0 ? interests : null
       };
       
       console.log('Saving profile data:', profileData);
@@ -218,7 +231,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
     setGameTags(gameTags.filter(t => t !== tag));
   };
 
-  // Avatares por defecto (agrega más nombres si tienes más imágenes)
+  // Default avatars (add more names if you have more images)
   const defaultAvatars = [
     '/avatars/avatar1.png',
     '/avatars/avatar2.png',
@@ -232,15 +245,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50">
+    <div className="fixed inset-0 flex items-center justify-center z-50">
       <div className="bg-[#18122B]/90 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl text-white flex flex-col items-stretch font-inter relative border border-purple-400/30">
-        {/* Avatar y nombre */}
+        {/* Avatar and name */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative group">
             <img src={avatarUrl || '/default-avatar.png'} alt="avatar" className="w-28 h-28 rounded-full border-4 border-purple-400 object-cover bg-[#18122B]" />
-            {/* Se elimina el botón y el input para subir avatar personalizado */}
+            {/* The button and input for uploading custom avatar are removed */}
           </div>
-          {/* Galería de avatares por defecto */}
+          {/* Default avatar gallery */}
           {isSelf && editMode && (
             <div className="flex gap-2 mt-4 flex-wrap justify-center">
               {defaultAvatars.map((src) => (
@@ -249,7 +262,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                   type="button"
                   className={`w-12 h-12 rounded-full border-2 ${avatarUrl === src ? 'border-green-400 ring-2 ring-green-400' : 'border-purple-700'} overflow-hidden focus:outline-none transition-all`}
                   onClick={() => { setAvatarUrl(src); }}
-                  aria-label="Elegir avatar por defecto"
+                  aria-label="Choose default avatar"
                 >
                   <img src={src} alt="default avatar" className="w-full h-full object-cover" />
                 </button>
@@ -258,33 +271,33 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
           )}
           <div className="mt-3 text-2xl font-bold text-purple-200">{username}</div>
           <div className="text-sm text-purple-400">{email}</div>
-          <div className="text-xs text-gray-400 mt-1">Miembro desde {createdAt ? new Date(createdAt).toLocaleDateString() : ''}</div>
+          <div className="text-xs text-gray-400 mt-1">Member since {createdAt ? new Date(createdAt).toLocaleDateString() : ''}</div>
         </div>
-        {/* Campos de perfil */}
+        {/* Profile fields */}
         <div className="flex flex-col gap-3">
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs text-purple-300 mb-1" htmlFor="birthdate">Fecha de nacimiento</label>
-              <input id="birthdate" type="date" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={birthdate} onChange={e => setBirthdate(e.target.value)} disabled={!isSelf || !editMode} title="Fecha de nacimiento" />
+              <label className="block text-xs text-purple-300 mb-1" htmlFor="birthdate">Date of birth</label>
+              <input id="birthdate" type="date" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={birthdate} onChange={e => setBirthdate(e.target.value)} disabled={!isSelf || !editMode} title="Date of birth" />
             </div>
             <div className="flex-1">
-              <label className="block text-xs text-purple-300 mb-1" htmlFor="country">País</label>
-              <select id="country" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={country} onChange={e => { setCountry(e.target.value); setCity(''); }} disabled={!isSelf || !editMode} title="País">
-                <option value="">Selecciona país</option>
+              <label className="block text-xs text-purple-300 mb-1" htmlFor="country">Country</label>
+              <select id="country" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={country} onChange={e => { setCountry(e.target.value); setCity(''); }} disabled={!isSelf || !editMode} title="Country">
+                <option value="">Select country</option>
                 {countryList.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="flex-1">
-              <label className="block text-xs text-purple-300 mb-1" htmlFor="city">Ciudad</label>
-              <select id="city" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={city} onChange={e => setCity(e.target.value)} disabled={!isSelf || !editMode || !country} title="Ciudad">
-                <option value="">Selecciona ciudad</option>
+              <label className="block text-xs text-purple-300 mb-1" htmlFor="city">City</label>
+              <select id="city" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={city} onChange={e => setCity(e.target.value)} disabled={!isSelf || !editMode || !country} title="City">
+                <option value="">Select city</option>
                 {cityList.map((c: string) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
           {/* Game tags */}
           <div>
-            <label className="block text-xs text-purple-300 mb-1">Juegos favoritos</label>
+            <label className="block text-xs text-purple-300 mb-1">Favorite games</label>
             <div className="flex flex-wrap gap-2 mb-2">
               {gameTags.map(tag => (
                 <span key={tag} className="bg-purple-800 text-purple-200 px-3 py-1 rounded-full text-xs flex items-center gap-1">
@@ -296,7 +309,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
               ))}
               {isSelf && editMode && (
                 <>
-                  <input type="text" className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white w-28" value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }} placeholder="Agregar juego" title="Agregar juego" />
+                  <input type="text" className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white w-28" value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }} placeholder="Add game" title="Add game" />
                   <button type="button" className="bg-purple-700 text-white rounded px-2 py-1 text-xs ml-1" onClick={handleAddTag}>+</button>
                 </>
               )}
@@ -304,38 +317,180 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
           </div>
           {/* Bio */}
           <div>
-            <label className="block text-xs text-purple-300 mb-1" htmlFor="bio">Biografía</label>
-            <textarea id="bio" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" maxLength={240} value={bio} onChange={e => setBio(e.target.value)} disabled={!isSelf || !editMode} placeholder="Cuéntanos sobre ti..." title="Biografía" />
+            <label className="block text-xs text-purple-300 mb-1" htmlFor="bio">Biography</label>
+            <textarea id="bio" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" maxLength={240} value={bio} onChange={e => setBio(e.target.value)} disabled={!isSelf || !editMode} placeholder="Tell us about yourself..." title="Biography" />
             <div className="text-xs text-gray-400 text-right">{bio.length}/240</div>
           </div>
           {/* Steam code */}
           <div>
-            <label className="block text-xs text-purple-300 mb-1" htmlFor="steamCode">Código amigo de Steam</label>
-            <input id="steamCode" type="text" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={steamCode} onChange={e => setSteamCode(e.target.value)} disabled={!isSelf || !editMode} placeholder="Ej: 123456789" title="Código amigo de Steam" />
+            <label className="block text-xs text-purple-300 mb-1" htmlFor="steamCode">Steam friend code</label>
+            <input id="steamCode" type="text" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={steamCode} onChange={e => setSteamCode(e.target.value)} disabled={!isSelf || !editMode} placeholder="Ex: 123456789" title="Steam friend code" />
           </div>
+          {/* Social Preferences */}
+          <div>
+            <label className="block text-xs text-purple-300 mb-1">Gender (optional)</label>
+            <select className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={gender} onChange={e => setGender(e.target.value)} disabled={!isSelf || !editMode}>
+              <option value="">Prefer not to say</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="non-binary">Non-binary</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs text-purple-300 mb-1">Sexual orientation (optional)</label>
+            <select className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={sexualOrientation} onChange={e => setSexualOrientation(e.target.value)} disabled={!isSelf || !editMode}>
+              <option value="">Prefer not to say</option>
+              <option value="heterosexual">Heterosexual</option>
+              <option value="homosexual">Homosexual</option>
+              <option value="bisexual">Bisexual</option>
+              <option value="pansexual">Pansexual</option>
+              <option value="asexual">Asexual</option>
+              <option value="demisexual">Demisexual</option>
+              <option value="queer">Queer</option>
+              <option value="questioning">Questioning</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-xs text-purple-300 mb-1">Looking for connections</label>
+            <div className="flex flex-wrap gap-2">
+              {[{id: 'gaming', label: 'Gaming Partners'}, {id: 'chat', label: 'Chat Friends'}, {id: 'both', label: 'Both'}].map(type => (
+                <label key={type.id} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={connectionTypes.includes(type.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setConnectionTypes([...connectionTypes, type.id]);
+                      } else {
+                        setConnectionTypes(connectionTypes.filter(t => t !== type.id));
+                      }
+                    }}
+                    disabled={!isSelf || !editMode}
+                    className="accent-purple-500"
+                  />
+                  <span className="text-xs text-white">{type.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-xs text-purple-300 mb-1">Additional interests</label>
+            <div className="flex flex-wrap gap-2">
+              {['Anime', 'Music', 'Movies', 'Art', 'Books', 'Sports', 'Travel', 'Tech'].map(interest => (
+                <label key={interest} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={interests.includes(interest)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setInterests([...interests, interest]);
+                      } else {
+                        setInterests(interests.filter(i => i !== interest));
+                      }
+                    }}
+                    disabled={!isSelf || !editMode}
+                    className="accent-purple-500"
+                  />
+                  <span className="text-xs text-white">{interest}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          
           {/* Social links */}
           <div>
-            <label className="block text-xs text-purple-300 mb-1">Redes sociales</label>
+            <label className="block text-xs text-purple-300 mb-1">Social networks</label>
             <div className="flex flex-col gap-2">
               {socialLinks.map((s) => (
                 <div key={s.id} className="flex gap-2 items-center">
-                  <select className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white" value={s.type} onChange={e => handleSocialChange(s.id, 'type', e.target.value)} disabled={!isSelf || !editMode} title="Tipo de red social">
-                    <option value="">Tipo</option>
+                  <select className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white" value={s.type} onChange={e => handleSocialChange(s.id, 'type', e.target.value)} disabled={!isSelf || !editMode} title="Social network type">
+                    <option value="">Type</option>
                     {socialTypes.map(st => <option key={st.type} value={st.type}>{st.label}</option>)}
                   </select>
-                  <input type="text" className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white flex-1" value={s.url} onChange={e => handleSocialChange(s.id, 'url', e.target.value)} disabled={!isSelf || !editMode} placeholder="Enlace o usuario" title="Enlace o usuario" />
+                  <input type="text" className="bg-[#221b3a] border border-purple-700 rounded px-2 py-1 text-xs text-white flex-1" value={s.url} onChange={e => handleSocialChange(s.id, 'url', e.target.value)} disabled={!isSelf || !editMode} placeholder="Link or username" title="Link or username" />
                   {isSelf && editMode && (
                     <button type="button" className="text-red-400 hover:text-red-200 text-lg" onClick={() => handleRemoveSocial(s.id)} aria-label="Remove social">&times;</button>
                   )}
                 </div>
               ))}
               {isSelf && editMode && (
-                <button type="button" className="bg-purple-700 text-white rounded px-3 py-1 text-xs mt-1 self-start" onClick={handleAddSocial}>+ Agregar red social</button>
+                <button type="button" className="bg-purple-700 text-white rounded px-3 py-1 text-xs mt-1 self-start" onClick={handleAddSocial}>+ Add social network</button>
               )}
             </div>
           </div>
         </div>
-        {/* Acciones */}
+        {/* Action buttons for other users */}
+        {!isSelf && (
+          <div className="flex gap-3 mt-6">
+            <GlareHover
+              width="50%"
+              height="auto"
+              background="linear-gradient(to right, #8b5cf6, #3b82f6)"
+              borderRadius="12px"
+              borderColor="transparent"
+              glareColor="#ffffff"
+              glareOpacity={0.3}
+            >
+              <button 
+                onClick={async () => {
+                  if (!authUser || !userId) return;
+                  await supabase.from('friend_requests').insert({
+                    sender_id: authUser.id,
+                    receiver_id: userId,
+                    status: 'pending'
+                  });
+                  setSuccess('Friend request sent!');
+                }}
+                className="w-full bg-transparent text-white px-4 py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
+              >
+                🤝 Add Friend
+              </button>
+            </GlareHover>
+            
+            <GlareHover
+              width="50%"
+              height="auto"
+              background="linear-gradient(to right, #10b981, #06b6d4)"
+              borderRadius="12px"
+              borderColor="transparent"
+              glareColor="#ffffff"
+              glareOpacity={0.3}
+            >
+              <button 
+                onClick={async () => {
+                  if (!authUser || !userId) return;
+                  // Create or find conversation
+                  const { data: existing } = await supabase
+                    .from('private_conversations')
+                    .select('id')
+                    .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${authUser.id})`)
+                    .single();
+                  
+                  if (!existing) {
+                    await supabase.from('private_conversations').insert({
+                      user1_id: authUser.id,
+                      user2_id: userId,
+                      last_message_at: new Date().toISOString()
+                    });
+                  }
+                  
+                  setSuccess('Conversation started!');
+                  handleClose();
+                }}
+                className="w-full bg-transparent text-white px-4 py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
+              >
+                💬 Message
+              </button>
+            </GlareHover>
+          </div>
+        )}
+        
+        {/* Actions */}
         <div className="flex gap-3 mt-8 justify-end">
           {isSelf && !editMode && (
             <button className="bg-gradient-to-r from-purple-400 to-purple-300 text-[#18122B] font-bold px-6 py-2 rounded-xl shadow hover:from-purple-500 hover:to-purple-400" onClick={() => setEditMode(true)}>Edit Profile</button>
