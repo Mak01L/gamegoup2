@@ -68,12 +68,26 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     
     fetchMessages();
     
-    // Create unique channel name with timestamp to avoid conflicts
-    const channelName = `room-messages-${room.id}-${Date.now()}`;
+    // Create a stable channel name without timestamp to avoid creating multiple channels
+    // This ensures the subscription persists even when the component re-renders
+    const channelName = `room-messages-${room.id}`;
     console.log(`Creating channel: ${channelName}`);
     
+    // First, try to remove any existing channel with the same name to prevent duplicates
+    try {
+      supabase.removeChannel(supabase.getChannels().find(ch => ch.name === channelName));
+    } catch (e) {
+      console.log('No existing channel to remove');
+    }
+    
+    // Create a new channel with a more reliable configuration
     channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: authUser?.id || 'anonymous' },
+        }
+      })
       .on(
         'postgres_changes',
         { 
@@ -84,29 +98,44 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
         },
         (payload) => {
           console.log('New message received:', payload.new);
-          setMessages(msgs => {
-            // Prevents duplicates
-            if (msgs.some(m => m.id === payload.new.id)) {
+          // Use a callback function to ensure we're working with the latest state
+          setMessages(currentMessages => {
+            // Prevents duplicates by checking message ID
+            if (currentMessages.some(m => m.id === payload.new.id)) {
               console.log('Duplicate message ignored');
-              return msgs;
+              return currentMessages;
             }
             console.log('Adding new message to chat');
-            return [...msgs, payload.new as Message];
+            const newMessage = payload.new as Message;
+            return [...currentMessages, newMessage];
           });
         }
       )
       .subscribe((status) => {
         console.log(`Channel ${channelName} status:`, status);
+        // If subscription fails, try to reconnect
+        if (status === 'CHANNEL_ERROR' || status === 'CLOSED' || status === 'TIMED_OUT') {
+          console.log('Channel error, attempting to reconnect...');
+          setTimeout(() => {
+            if (isMounted) fetchMessages();
+          }, 2000);
+        }
       });
+    
+    // Set up a periodic refresh to ensure we don't miss any messages
+    const refreshInterval = setInterval(() => {
+      if (isMounted) fetchMessages();
+    }, 30000); // Refresh every 30 seconds
     
     return () => {
       isMounted = false;
+      clearInterval(refreshInterval);
       if (channel) {
         console.log(`Removing channel: ${channelName}`);
         supabase.removeChannel(channel);
       }
     };
-  }, [room.id]);
+  }, [room.id, authUser?.id]);
 
   // Fetch users helper (must be defined before use)
   const fetchUsers = useCallback(async () => {
@@ -254,17 +283,58 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !authUser) return;
+    
+    // Store the message locally to prevent input lag
+    const messageContent = input.trim();
+    setInput('');
+    
     // Use profile.username for chat messages
     const usernameToSend = profile?.username || authUser.email;
-    await supabase.from('messages').insert([
-      {
+    
+    try {
+      // Add optimistic update for better UX
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
         room_id: room.id,
         user_id: authUser.id,
-        username: usernameToSend,
-        content: input,
-      },
-    ]);
-    setInput('');
+        username: usernameToSend as string,
+        content: messageContent,
+        created_at: new Date().toISOString()
+      };
+      
+      // Add message to local state immediately for better UX
+      setMessages(currentMessages => [...currentMessages, optimisticMessage]);
+      
+      // Then send to server
+      const { data, error } = await supabase.from('messages').insert([
+        {
+          room_id: room.id,
+          user_id: authUser.id,
+          username: usernameToSend,
+          content: messageContent,
+        },
+      ]).select();
+      
+      if (error) {
+        console.error('Error sending message:', error);
+        // Remove optimistic message if there was an error
+        setMessages(currentMessages => 
+          currentMessages.filter(msg => msg.id !== optimisticMessage.id)
+        );
+        // Show error to user
+        alert('Failed to send message. Please try again.');
+      } else {
+        console.log('Message sent successfully:', data);
+        // Replace optimistic message with real one from server
+        setMessages(currentMessages => 
+          currentMessages.map(msg => 
+            msg.id === optimisticMessage.id ? data[0] : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Exception in handleSend:', error);
+    }
   };
 
   const handleViewProfile = (userId: string) => {
