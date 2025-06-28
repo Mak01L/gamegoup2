@@ -220,7 +220,7 @@ const Home: React.FC = () => {
                 onClick={() => setShowCreateModal(true)}
                 type="button"
               >
-                Create Room
+                Create New Room
               </button>
             </GlareHover>
           </div>
