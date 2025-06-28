@@ -1,9 +1,6 @@
 [build]
-  command = "npm run build"
+  command = "mkdir -p dist && cp -r public/* dist/"
   publish = "dist"
-
-[build.environment]
-  NODE_VERSION = "18"
 
 [[redirects]]
   from = "/*"
