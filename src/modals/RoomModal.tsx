@@ -85,7 +85,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
         (payload) => {
           console.log('New message received:', payload.new);
           setMessages(msgs => {
-            // Previene duplicados
+            // Prevents duplicates
             if (msgs.some(m => m.id === payload.new.id)) {
               console.log('Duplicate message ignored');
               return msgs;
