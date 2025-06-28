@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GameGoUp</title>
+  <title>GameGoUp - Próximamente</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(to bottom right, #18122B, #6D28D9);
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #18122B, #6D28D9);
       color: white;
       height: 100vh;
       margin: 0;
@@ -16,40 +19,179 @@
       align-items: center;
       justify-content: center;
       text-align: center;
+      overflow: hidden;
+      position: relative;
     }
+    
+    .stars {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+    }
+    
+    .star {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      animation: twinkle 4s infinite ease-in-out;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+    
     .container {
       max-width: 600px;
-      padding: 20px;
-      background-color: rgba(40, 30, 70, 0.5);
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 40px;
+      background-color: rgba(40, 30, 70, 0.7);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(167, 139, 250, 0.3);
+      z-index: 1;
+      margin: 20px;
     }
+    
+    .logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.5));
+    }
+    
     h1 {
       color: #A78BFA;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
     }
+    
+    h2 {
+      color: #C4B5FD;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    
     p {
       margin-bottom: 20px;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #E9D5FF;
     }
+    
     .button {
       background: linear-gradient(to right, #A78BFA, #6D28D9);
       color: white;
       border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
+      padding: 12px 24px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
       text-decoration: none;
       display: inline-block;
       margin-top: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(167, 139, 250, 0.5);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(167, 139, 250, 0.7);
+    }
+    
+    .status {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: rgba(109, 40, 217, 0.3);
+      border-radius: 8px;
+      border-left: 4px solid #A78BFA;
+    }
+    
+    .status-title {
+      font-weight: bold;
+      color: #C4B5FD;
+      margin-bottom: 5px;
+    }
+    
+    .status-message {
+      font-size: 0.9rem;
+      color: #E9D5FF;
+    }
+    
+    .countdown {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #A78BFA;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
+  <div class="stars" id="stars"></div>
+  
   <div class="container">
+    <img src="/logo.png" alt="GameGoUp Logo" class="logo">
     <h1>GameGoUp</h1>
-    <p>¡Bienvenido a GameGoUp! La aplicación está en mantenimiento.</p>
-    <p>Estamos trabajando para mejorar tu experiencia.</p>
+    <h2>Encuentra compañeros de juego</h2>
+    
+    <p>Estamos trabajando para mejorar tu experiencia de juego. La aplicación estará disponible muy pronto.</p>
+    
+    <div class="status">
+      <div class="status-title">Estado del sitio:</div>
+      <div class="status-message">Actualización en progreso. Estamos implementando nuevas características y mejorando el rendimiento.</div>
+    </div>
+    
+    <div class="countdown" id="countdown">Lanzamiento en: 7 días</div>
+    
     <a href="https://github.com/Mak01L/gamegoup2" class="button">Ver en GitHub</a>
   </div>
+  
+  <script>
+    // Crear estrellas
+    const starsContainer = document.getElementById('stars');
+    const starCount = 100;
+    
+    for (let i = 0; i < starCount; i++) {
+      const star = document.createElement('div');
+      star.className = 'star';
+      
+      // Tamaño aleatorio
+      const size = Math.random() * 3 + 1;
+      star.style.width = `${size}px`;
+      star.style.height = `${size}px`;
+      
+      // Posición aleatoria
+      star.style.left = `${Math.random() * 100}%`;
+      star.style.top = `${Math.random() * 100}%`;
+      
+      // Animación con retraso aleatorio
+      star.style.animationDelay = `${Math.random() * 4}s`;
+      
+      starsContainer.appendChild(star);
+    }
+    
+    // Actualizar cuenta regresiva
+    const countdownElement = document.getElementById('countdown');
+    const launchDate = new Date();
+    launchDate.setDate(launchDate.getDate() + 7);
+    
+    function updateCountdown() {
+      const now = new Date();
+      const diff = launchDate - now;
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      countdownElement.textContent = `Lanzamiento en: ${days} días, ${hours} horas, ${minutes} minutos`;
+    }
+    
+    updateCountdown();
+    setInterval(updateCountdown, 60000);
+  </script>
 </body>
 </html>
