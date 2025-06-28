@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import ProfileModal from './ProfileModal';
@@ -269,6 +270,266 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
       .channel('room-users-' + room.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'room_users', filter: `room_id=eq.${room.id}` }, fetchUsers)
       .subscribe();
+    return () => {
+      if (subscription) supabase.removeChannel(subscription);
+    };
+  }, [room.id]);
+
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || !authUser) return;
+    
+    // Store the message locally to prevent input lag
+    const messageContent = input.trim();
+    setInput('');
+    
+    // Use profile.username for chat messages
+    const usernameToSend = profile?.username || authUser.email;
+    
+    try {
+      // Add optimistic update for better UX
+      const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        room_id: room.id,
+        user_id: authUser.id,
+        username: usernameToSend as string,
+        content: messageContent,
+        created_at: new Date().toISOString()
+      };
+      
+      // Add message to local state immediately for better UX
+      setMessages(currentMessages => [...currentMessages, optimisticMessage]);
+      
+      // Then send to server
+      const { data, error } = await supabase.from('messages').insert([
+        {
+          room_id: room.id,
+          user_id: authUser.id,
+          username: usernameToSend,
+          content: messageContent,
+        },
+      ]).select();
+      
+      if (error) {
+        console.error('Error sending message:', error);
+        // Remove optimistic message if there was an error
+        setMessages(currentMessages => 
+          currentMessages.filter(msg => msg.id !== optimisticMessage.id)
+        );
+        // Show error to user
+        alert('Failed to send message. Please try again.');
+      } else {
+        console.log('Message sent successfully:', data);
+        // Replace optimistic message with real one from server
+        setMessages(currentMessages => 
+          currentMessages.map(msg => 
+            msg.id === optimisticMessage.id ? data[0] : msg
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Exception in handleSend:', error);
+    }
+  };
+
+  const handleViewProfile = (userId: string) => {
+    setViewProfileId(userId);
+  };
+
+  const handleCloseProfile = () => {
+    setViewProfileId(null);
+  };
+
+  // Leave room handler
+  const handleLeaveRoom = async () => {
+    if (!authUser) return;
+    
+    try {
+      // Remove user from room
+      console.log(`Removing user ${authUser.id} from room ${room.id}`);
+      const { error: removeError, data: removedData } = await supabase
+        .from('room_users')
+        .delete()
+        .eq('room_id', room.id)
+        .eq('user_id', authUser.id)
+        .select();
+      
+      if (removeError) {
+        console.error('Error removing user from room:', removeError);
+        return;
+      }
+      
+      console.log('User successfully removed from room:', removedData);
+      
+      // Trigger manual update of room count
+      window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+      
+      // Check if room is empty and delete if necessary
+      const { data: usersLeft, error: countError } = await supabase
+        .from('room_users')
+        .select('id')
+        .eq('room_id', room.id);
+      
+      if (countError) {
+        console.error('Error checking remaining users:', countError);
+      } else {
+        console.log(`Users left in room ${room.id}:`, usersLeft?.length || 0);
+        
+        if (!usersLeft || usersLeft.length === 0) {
+          console.log('Room is empty, deleting...');
+          // Delete messages first
+          await supabase.from('messages').delete().eq('room_id', room.id);
+          // Then delete the room
+          const { error: roomDeleteError } = await supabase.from('rooms').delete().eq('id', room.id);
+          if (roomDeleteError) {
+            console.error('Error deleting empty room:', roomDeleteError);
+          } else {
+            console.log('Empty room deleted successfully');
+          }
+        }
+      }
+      
+      // Remove from pinned rooms and close modal
+      removeRoom(room.id);
+      if (onRoomLeft) {
+        onRoomLeft(room.id);
+      } else {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Exception in handleLeaveRoom:', error);
+    }
+  };
+
+  if (loading) return (
+    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000]">
+      <div className="bg-[#18122B] rounded-2xl p-8 w-full max-w-lg shadow-2xl text-white flex flex-col items-center font-inter">
+        <span className="text-purple-300 text-lg font-semibold">Loading...</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2000] w-full max-w-2xl p-2 pointer-events-none">
+        <div className="bg-[#18122B] rounded-2xl p-6 w-full shadow-2xl text-white flex flex-col items-stretch font-inter relative border-2 border-purple-900 pointer-events-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center border-b border-purple-800 pb-3 mb-3">
+            <div>
+              <h2 className="text-2xl font-bold text-purple-200 uppercase tracking-wide">{room.name}</h2>
+              <div className="text-xs text-purple-400 mt-1">
+                Created: {room.created_at ? new Date(room.created_at).toLocaleString() : 'Unknown'}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleLeaveRoom} className="bg-gradient-to-r from-orange-400 to-pink-500 text-[#18122B] font-bold px-4 py-1 rounded-xl shadow hover:from-orange-500 hover:to-pink-600 text-sm">Leave Room</button>
+              <button onClick={onClose} className="text-purple-400 hover:text-purple-200 text-2xl font-bold px-2 focus:outline-none">&times;</button>
+            </div>
+          </div>
+          {/* Chat */}
+          <div className="flex-1 flex flex-col min-h-[320px] max-h-[340px] mb-4">
+            <div ref={chatRef} className="flex-1 bg-[#221b3a]/70 rounded-xl p-4 overflow-y-auto shadow-inner">
+              {messages.length === 0 ? (
+                <div className="text-center text-purple-400 py-4">No messages yet. Be the first to send a message!</div>
+              ) : (
+                messages.map(msg => (
+                  <div key={msg.id} className={`flex ${msg.user_id === authUser?.id ? 'justify-end' : 'justify-start'} mb-2`}>
+                    <div
+                      className={
+                        'max-w-[70%] px-4 py-2 rounded-2xl shadow text-sm font-medium flex items-center gap-2 ' +
+                        (msg.user_id === authUser?.id
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                          : 'bg-[#232046] text-purple-200 border border-purple-700')
+                      }
+                    >
+                      <span className="font-bold text-purple-200 mr-1">{msg.username}:</span>
+                      <span className="text-white">{msg.content}</span>
+                      <span className="text-xs text-gray-400 ml-2">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <form onSubmit={handleSend} className="flex gap-2 mt-3">
+              <input
+                type="text"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                className="flex-1 px-4 py-2 rounded-lg border-2 border-purple-500 bg-[#221b3a] text-white text-base outline-none focus:ring-2 focus:ring-purple-400"
+                placeholder="Type your message..."
+              />
+              <button
+                type="submit"
+                className="px-6 py-2 rounded-lg font-bold text-base bg-gradient-to-r from-purple-400 to-blue-400 text-[#18122B] border-none cursor-pointer shadow hover:from-purple-500 hover:to-blue-500 disabled:opacity-60"
+                disabled={!input.trim()}
+              >
+                Send
+              </button>
+            </form>
+          </div>
+          {/* Room Users */}
+          <div className="bg-[#221b3a]/80 rounded-xl p-4 mt-2 border border-purple-800">
+            <h3 className="text-md font-semibold text-purple-300 mb-3">Room Users</h3>
+            <div className="flex flex-wrap gap-3">
+              {users.length === 0 ? (
+                <div className="text-gray-400 text-sm">No users in this room</div>
+              ) : (
+                users.map(user => (
+                  <div key={user.id} className="flex items-center gap-3 bg-[#232046]/80 px-3 py-2 rounded-lg border border-purple-800 min-w-[180px]">
+                    <img 
+                      src={user.profile?.avatar_url || '/default-avatar.png'} 
+                      alt={user.profile?.username || 'User'} 
+                      className="w-9 h-9 rounded-full border-2 border-purple-400 object-cover bg-[#18122B]" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/default-avatar.png';
+                      }}
+                    />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="font-semibold text-purple-200 truncate">
+                        {user.profile?.username || 'User'}
+                      </span>
+                      <span className="text-xs text-gray-400 truncate">
+                        {user.profile?.email || `ID: ${user.user_id.slice(0, 8)}`}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {user.is_owner && (
+                        <span className="text-xs bg-gradient-to-r from-green-400 to-green-300 text-[#18122B] rounded-full px-2 py-0.5 font-bold mb-1">Owner</span>
+                      )}
+                      <button
+                        onClick={() => handleViewProfile(user.user_id)}
+                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full px-3 py-1 font-semibold shadow hover:from-blue-600 hover:to-purple-600"
+                      >
+                        View Profile
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Profile Modal Overlay */}
+      {viewProfileId && (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+          <div className="relative max-w-md w-full mx-4">
+            <ProfileModal userId={viewProfileId!} onClose={handleCloseProfile} />
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default RoomModal;cribe();
     return () => {
       if (subscription) supabase.removeChannel(subscription);
     };
