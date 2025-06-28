@@ -11,8 +11,9 @@ import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
 import GlareHover from '../components/GlareHover';
-import NotificationSystem from '../components/NotificationSystem';
-import { useUserPresence } from '../hooks/useUserPresence';
+// Temporarily comment out problematic imports
+// import NotificationSystem from '../components/NotificationSystem';
+// import { useUserPresence } from '../hooks/useUserPresence';
 
 interface Room {
   id: string;
@@ -45,8 +46,8 @@ const Home: React.FC = () => {
   const { rooms: pinnedRooms, addRoom } = usePinnedRoomsStore();
   const { authUser } = useUser();
   
-  // Track user presence
-  useUserPresence();
+  // Temporarily comment out user presence tracking
+  // useUserPresence();
 
   // Auto-refresh on mount to show current user counts
   useEffect(() => {
@@ -180,8 +181,6 @@ const Home: React.FC = () => {
     handleApply(); // Refresh room list
   };
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white flex flex-row relative">
       <BackgroundParticles />
@@ -194,7 +193,7 @@ const Home: React.FC = () => {
       <div className="flex-1 flex flex-col items-center py-8 relative">
         {/* User menu top right */}
         <div className="absolute top-6 right-8 z-10 flex items-center gap-4">
-          <NotificationSystem />
+          {/* Temporarily removed NotificationSystem */}
           <UserMenu />
         </div>
         {/* Logo */}
