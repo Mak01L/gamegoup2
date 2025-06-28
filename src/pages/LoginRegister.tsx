@@ -3,7 +3,7 @@ import { supabase, reinitSupabaseClient } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileModal from '../modals/ProfileModal';
-import BackgroundParticles from '../components/BackgroundParticles';
+import SimpleBackgroundParticles from '../components/SimpleBackgroundParticles';
 import ShinyText from '../components/ShinyText';
 import GlareHover from '../components/GlareHover';
 
@@ -184,19 +184,19 @@ const LoginRegister: React.FC = () => {
   // --- UI ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#18122B] via-[#6D28D9] to-[#A78BFA] font-inter p-4 text-[#F3E8FF] relative overflow-hidden">
-      <BackgroundParticles />
+      <SimpleBackgroundParticles />
       {/* Futuristic Glow Effects */}
       <div className="absolute -top-10 -left-10 w-[400px] h-[400px] opacity-50 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #C084FC 0%, transparent 70%)'}} />
       <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #A78BFA 0%, transparent 70%)'}} />
       {/* Header */}
-      <div className="mb-9 text-center z-20">
-        <img src="/logo.png" alt="GameGoUp Logo" className="h-20 mx-auto mb-4 drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
-        <p className="text-lg text-[#A78BFA] font-medium m-0 drop-shadow-[0_0_4px_rgba(167,139,250,0.3)]">
+      <div className="mb-6 text-center z-20">
+        <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto mb-3 drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
+        <p className="text-base text-[#A78BFA] font-medium m-0 drop-shadow-[0_0_4px_rgba(167,139,250,0.3)]">
           Connect, play, win. The easiest way to build your team.
         </p>
       </div>
       {/* Card */}
-      <div className="w-full max-w-sm rounded-2xl p-9 flex flex-col items-stretch z-20 bg-[rgba(40,30,70,0.55)] shadow-2xl border border-[#7C5CFA]/25 backdrop-blur-lg">
+      <div className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-stretch z-20 bg-[rgba(40,30,70,0.55)] shadow-2xl border border-[#7C5CFA]/25 backdrop-blur-lg">
         <div className="flex w-full mb-6">
           <button
             className={`flex-1 py-3 rounded-tl-xl rounded-bl-xl font-semibold text-base transition-all outline-none ${isLogin ? 'bg-gradient-to-r from-[#C084FC] to-[#A78BFA] text-[#18122B] shadow-[0_0_16px_0_#C084FC] drop-shadow-[0_0_8px_#F3E8FF]' : 'bg-transparent text-[#bdbdbd]'}`}
@@ -242,18 +242,20 @@ const LoginRegister: React.FC = () => {
               </label>
               <button type="button" className="text-[#C084FC] bg-none border-none cursor-pointer underline font-medium text-sm" onClick={() => setShowForgot(true)}>Forgot password?</button>
             </div>
-            <GlareHover
-              width="100%"
-              height="auto"
-              background="linear-gradient(to right, #C084FC, #A78BFA)"
-              borderRadius="12px"
-              borderColor="transparent"
-              glareColor="#ffffff"
-              glareOpacity={0.4}
-              transitionDuration={600}
-            >
-              <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
-            </GlareHover>
+            <div className="flex justify-center mt-5">
+              <GlareHover
+                width="70%"
+                height="44px"
+                background="linear-gradient(to right, #C084FC, #A78BFA)"
+                borderRadius="12px"
+                borderColor="transparent"
+                glareColor="#ffffff"
+                glareOpacity={0.4}
+                transitionDuration={600}
+              >
+                <button type="submit" className="w-full h-full rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50 flex items-center justify-center" disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
+              </GlareHover>
+            </div>
           </form>
         ) : (
           <form className="w-full flex flex-col gap-4" onSubmit={handleRegister}>
@@ -293,18 +295,20 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <GlareHover
-              width="100%"
-              height="auto"
-              background="linear-gradient(to right, #C084FC, #A78BFA)"
-              borderRadius="12px"
-              borderColor="transparent"
-              glareColor="#ffffff"
-              glareOpacity={0.4}
-              transitionDuration={600}
-            >
-              <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Register'}</button>
-            </GlareHover>
+            <div className="flex justify-center mt-5">
+              <GlareHover
+                width="70%"
+                height="44px"
+                background="linear-gradient(to right, #C084FC, #A78BFA)"
+                borderRadius="12px"
+                borderColor="transparent"
+                glareColor="#ffffff"
+                glareOpacity={0.4}
+                transitionDuration={600}
+              >
+                <button type="submit" className="w-full h-full rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50 flex items-center justify-center" disabled={loading}>{loading ? 'Loading...' : 'Register'}</button>
+              </GlareHover>
+            </div>
           </form>
         )}
       </div>
