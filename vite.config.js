@@ -7,5 +7,10 @@ export default defineConfig({
     outDir: 'dist',
     minify: true,
     sourcemap: false
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
+    host: true
   }
 })

@@ -1,5 +1,6 @@
 {
-  "version": 2,
-  "public": true,
-  "outputDirectory": "public"
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install"
 }
