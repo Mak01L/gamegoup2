@@ -80,11 +80,9 @@ const Home: React.FC = () => {
       console.log(`Updating room ${roomId} to ${userCount} users`);
       
       setRooms(prevRooms => {
-        const updatedRooms = prevRooms.map(room => 
+        return prevRooms.map(room => 
           room.id === roomId ? { ...room, user_count: userCount } : room
         );
-        console.log('Updated rooms state:', updatedRooms.find(r => r.id === roomId));
-        return updatedRooms;
       });
     };
 
@@ -102,7 +100,7 @@ const Home: React.FC = () => {
         console.log('New room created globally:', payload.new.id);
         // Add new room to local state with user count
         const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
-        const newRoom = { ...payload.new, user_count: users?.length || 0 };
+        const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
         setRooms(prevRooms => [newRoom, ...prevRooms]);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms' }, (payload) => {

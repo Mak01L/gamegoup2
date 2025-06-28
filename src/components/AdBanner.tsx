@@ -46,7 +46,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ position = 'top' }) => {
         border: '1.5px dashed #7C5CFA44',
       }}
     >
-      <ins
+      <div
         className="adsbygoogle"
         style={{ display: 'block', width: '100%', height: position === 'sidebar' ? 120 : 90 }}
         data-ad-client="ca-pub-7274762890410296"
@@ -54,7 +54,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ position = 'top' }) => {
         data-ad-format={position === 'sidebar' ? "vertical" : "horizontal"}
         data-full-width-responsive="true"
         ref={adRef}
-      ></ins>
+      ></div>
     </div>
   );
 };

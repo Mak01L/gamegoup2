@@ -26,6 +26,7 @@ interface Message {
   username: string;
   content: string;
   created_at: string;
+  room_id?: string; // Make room_id optional to fix TS error
 }
 
 interface RoomUser {
@@ -75,7 +76,9 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     
     // First, try to remove any existing channel with the same name to prevent duplicates
     try {
-      supabase.removeChannel(supabase.getChannels().find(ch => ch.name === channelName));
+      // Fix TS error by using type assertion
+      const existingChannel = supabase.getChannels().find(ch => (ch as any).name === channelName);
+      if (existingChannel) supabase.removeChannel(existingChannel);
     } catch (e) {
       console.log('No existing channel to remove');
     }

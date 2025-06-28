@@ -61,7 +61,7 @@ const LoginRegister: React.FC = () => {
   const [newUsername, setNewUsername] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [forceProfileUserId, setForceProfileUserId] = useState<string|null>(null);
-  const { setUser, setAuthUser, setProfile } = useUser();
+  const { setAuthUser, setProfile } = useUser();
   const navigate = useNavigate();
 
   // Login handler
