@@ -1,7 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://xzdyauqqvbsusrnovzhs.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6ZHlhdXFxdmJzdXNybm92emhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NzUwMjUsImV4cCI6MjA2NjM1MTAyNX0.C4P0_T-8ueu66ivqEuilLU-g_C0LsznYTk1rspfxDyo';
+// Use environment variables if available, otherwise fallback to hardcoded values
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xzdyauqqvbsusrnovzhs.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6ZHlhdXFxdmJzdXNybm92emhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA3NzUwMjUsImV4cCI6MjA2NjM1MTAyNX0.C4P0_T-8ueu66ivqEuilLU-g_C0LsznYTk1rspfxDyo';
 
 // Function to create a Supabase client with the correct storage
 export function createSupabaseClient(): SupabaseClient {
