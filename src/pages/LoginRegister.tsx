@@ -4,6 +4,8 @@ import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileModal from '../modals/ProfileModal';
 import BackgroundParticles from '../components/BackgroundParticles';
+import ShinyText from '../components/ShinyText';
+import GlareHover from '../components/GlareHover';
 
 // Add Inter font to the document head
 if (!document.getElementById('inter-font')) {
@@ -215,7 +217,7 @@ const LoginRegister: React.FC = () => {
         {success && <div className="w-full mb-2 text-[#C084FC] text-center font-semibold text-[15px]">{success}</div>}
         {isLogin ? (
           <form className="w-full flex flex-col gap-4" onSubmit={handleLogin}>
-            <label className="text-white font-semibold text-[15px] mb-0.5 ml-0.5">Email</label>
+            <ShinyText text="Email" className="font-semibold text-[15px] mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'email' ? '#C084FC' : '#bdbdbd'}}>mail</span>
               <input name="email" type="email" placeholder="Email" autoComplete="username" required
@@ -224,7 +226,7 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <label className="text-white font-semibold text-[15px] mt-2 mb-0.5 ml-0.5">Password</label>
+            <ShinyText text="Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'password' ? '#C084FC' : '#bdbdbd'}}>lock</span>
               <input name="password" type="password" placeholder="Password" autoComplete="current-password" required
@@ -236,15 +238,26 @@ const LoginRegister: React.FC = () => {
             <div className="flex items-center justify-between text-sm mt-2">
               <label className="flex items-center gap-1.5">
                 <input name="remember" type="checkbox" className="accent-[#C084FC] mr-1" />
-                Remember me
+                <ShinyText text="Remember me" className="" />
               </label>
               <button type="button" className="text-[#C084FC] bg-none border-none cursor-pointer underline font-medium text-sm" onClick={() => setShowForgot(true)}>Forgot password?</button>
             </div>
-            <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-[#C084FC] to-[#A78BFA] text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
+            <GlareHover
+              width="100%"
+              height="auto"
+              background="linear-gradient(to right, #C084FC, #A78BFA)"
+              borderRadius="12px"
+              borderColor="transparent"
+              glareColor="#ffffff"
+              glareOpacity={0.4}
+              transitionDuration={600}
+            >
+              <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Login'}</button>
+            </GlareHover>
           </form>
         ) : (
           <form className="w-full flex flex-col gap-4" onSubmit={handleRegister}>
-            <label className="text-white font-semibold text-[15px] mb-0.5 ml-0.5">Username</label>
+            <ShinyText text="Username" className="font-semibold text-[15px] mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'username' ? '#C084FC' : '#bdbdbd'}}>person</span>
               <input name="username" type="text" placeholder="Username" required
@@ -253,7 +266,7 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <label className="text-white font-semibold text-[15px] mt-2 mb-0.5 ml-0.5">Email</label>
+            <ShinyText text="Email" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'email' ? '#C084FC' : '#bdbdbd'}}>mail</span>
               <input name="email" type="email" placeholder="Email" required
@@ -262,7 +275,7 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <label className="text-white font-semibold text-[15px] mt-2 mb-0.5 ml-0.5">Password</label>
+            <ShinyText text="Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'password' ? '#C084FC' : '#bdbdbd'}}>lock</span>
               <input name="password" type="password" placeholder="Password" required
@@ -271,7 +284,7 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <label className="text-white font-semibold text-[15px] mt-2 mb-0.5 ml-0.5">Confirm Password</label>
+            <ShinyText text="Confirm Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
               <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'confirm' ? '#C084FC' : '#bdbdbd'}}>lock</span>
               <input name="confirm" type="password" placeholder="Confirm Password" required
@@ -280,7 +293,18 @@ const LoginRegister: React.FC = () => {
                 onBlur={() => setFocusField(null)}
               />
             </div>
-            <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-[#C084FC] to-[#A78BFA] text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Register'}</button>
+            <GlareHover
+              width="100%"
+              height="auto"
+              background="linear-gradient(to right, #C084FC, #A78BFA)"
+              borderRadius="12px"
+              borderColor="transparent"
+              glareColor="#ffffff"
+              glareOpacity={0.4}
+              transitionDuration={600}
+            >
+              <button type="submit" className="w-full py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none mt-5 cursor-pointer transition-all shadow-lg drop-shadow-[0_0_8px_#F3E8FF] disabled:opacity-50" disabled={loading}>{loading ? 'Loading...' : 'Register'}</button>
+            </GlareHover>
           </form>
         )}
       </div>

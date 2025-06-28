@@ -10,6 +10,7 @@ import BackgroundParticles from '../components/BackgroundParticles';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
+import GlareHover from '../components/GlareHover';
 
 interface Room {
   id: string;
@@ -199,13 +200,24 @@ const Home: React.FC = () => {
           <AdBanner position="top" />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
           <div className="flex justify-end mt-4">
-            <button
-              className="px-7 py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-purple-300 to-purple-200 text-[#18122B] border-none cursor-pointer shadow-md hover:from-purple-400 hover:to-purple-300 focus:outline-none"
-              onClick={() => setShowCreateModal(true)}
-              type="button"
+            <GlareHover
+              width="auto"
+              height="auto"
+              background="linear-gradient(to right, rgb(196, 181, 253), rgb(221, 214, 254))"
+              borderRadius="12px"
+              borderColor="transparent"
+              glareColor="#ffffff"
+              glareOpacity={0.3}
+              transitionDuration={500}
             >
-              Create Room
-            </button>
+              <button
+                className="px-7 py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none cursor-pointer shadow-md focus:outline-none"
+                onClick={() => setShowCreateModal(true)}
+                type="button"
+              >
+                Create Room
+              </button>
+            </GlareHover>
           </div>
         </div>
         {/* Room search results */}
@@ -253,38 +265,57 @@ const Home: React.FC = () => {
                     👥 {room.user_count || 0} users
                   </div>
                 </div>
-                <button
-                  className={`absolute top-3 right-3 px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none ${pinnedRooms.some((r: Room) => r.id === room.id)
-                    ? 'bg-[#2D2350] text-white cursor-not-allowed'
-                    : 'bg-gradient-to-r from-purple-300 to-purple-200 text-[#18122B] cursor-pointer hover:from-purple-400 hover:to-purple-300'}`}
-                  disabled={pinnedRooms.some((r: Room) => r.id === room.id)}
-                  onClick={async () => {
-                    // Ensure profile exists before joining room
-                    if (authUser) {
-                      // Create/update profile first
-                      await supabase.from('profiles').upsert([
-                        {
-                          user_id: authUser.id,
-                          username: authUser.email?.split('@')[0] || 'User'
+                {!pinnedRooms.some((r: Room) => r.id === room.id) ? (
+                  <GlareHover
+                    width="auto"
+                    height="auto"
+                    background="linear-gradient(to right, rgb(196, 181, 253), rgb(221, 214, 254))"
+                    borderRadius="6px"
+                    borderColor="transparent"
+                    glareColor="#ffffff"
+                    glareOpacity={0.3}
+                    transitionDuration={400}
+                    className="absolute top-3 right-3"
+                  >
+                    <button
+                      className="px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-transparent text-[#18122B] cursor-pointer"
+                      onClick={async () => {
+                        // Ensure profile exists before joining room
+                        if (authUser) {
+                          // Create/update profile first
+                          await supabase.from('profiles').upsert([
+                            {
+                              user_id: authUser.id,
+                              username: authUser.email?.split('@')[0] || 'User'
+                            }
+                          ], { onConflict: 'user_id' });
+                          
+                          // Then add to room_users
+                          const { error } = await supabase.from('room_users').upsert([
+                            { room_id: room.id, user_id: authUser.id }
+                          ], { onConflict: 'room_id,user_id' });
+                          
+                          if (!error) {
+                            // Trigger manual update of room count
+                            window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+                          }
                         }
-                      ], { onConflict: 'user_id' });
-                      
-                      // Then add to room_users
-                      const { error } = await supabase.from('room_users').upsert([
-                        { room_id: room.id, user_id: authUser.id }
-                      ], { onConflict: 'room_id,user_id' });
-                      
-                      if (!error) {
-                        // Trigger manual update of room count
-                        window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
-                      }
-                    }
-                    addRoom({ id: room.id, name: room.name, game: room.game });
-                  }}
-                  type="button"
-                >
-                  {pinnedRooms.some((r: Room) => r.id === room.id) ? 'Joined' : 'Join'}
-                </button>
+                        addRoom({ id: room.id, name: room.name, game: room.game });
+                      }}
+                      type="button"
+                    >
+                      Join
+                    </button>
+                  </GlareHover>
+                ) : (
+                  <button
+                    className="absolute top-3 right-3 px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-[#2D2350] text-white cursor-not-allowed"
+                    disabled={true}
+                    type="button"
+                  >
+                    Joined
+                  </button>
+                )}
               </div>
             ))}
           </div>
