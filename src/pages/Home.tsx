@@ -10,7 +10,6 @@ import BackgroundParticles from '../components/BackgroundParticles';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
-import GlareHover from '../components/GlareHover';
 
 interface Room {
   id: string;
@@ -231,6 +230,11 @@ const Home: React.FC = () => {
     }
   };
 
+  const handleCreateRoom = () => {
+    console.log('Create room button clicked');
+    setShowCreateModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white flex flex-row relative">
       <BackgroundParticles />
@@ -258,24 +262,13 @@ const Home: React.FC = () => {
           <AdBanner position="top" />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
           <div className="flex justify-end mt-4">
-            <GlareHover
-              width="auto"
-              height="auto"
-              background="linear-gradient(to right, rgb(196, 181, 253), rgb(221, 214, 254))"
-              borderRadius="12px"
-              borderColor="transparent"
-              glareColor="#ffffff"
-              glareOpacity={0.3}
-              transitionDuration={500}
+            <button
+              className="px-7 py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-purple-400 to-blue-400 text-white border-none cursor-pointer shadow-md focus:outline-none hover:from-purple-500 hover:to-blue-500 transition-all"
+              onClick={handleCreateRoom}
+              type="button"
             >
-              <button
-                className="px-7 py-3 rounded-xl font-bold text-lg bg-transparent text-[#18122B] border-none cursor-pointer shadow-md focus:outline-none"
-                onClick={() => setShowCreateModal(true)}
-                type="button"
-              >
-                Create New Room
-              </button>
-            </GlareHover>
+              Create New Room
+            </button>
           </div>
         </div>
         
@@ -330,29 +323,17 @@ const Home: React.FC = () => {
                 
                 {/* Join/Joined button */}
                 {!pinnedRooms.some((r: any) => r.id === room.id) ? (
-                  <GlareHover
-                    width="auto"
-                    height="auto"
-                    background="linear-gradient(to right, rgb(196, 181, 253), rgb(221, 214, 254))"
-                    borderRadius="6px"
-                    borderColor="transparent"
-                    glareColor="#ffffff"
-                    glareOpacity={0.3}
-                    transitionDuration={400}
-                    className="absolute top-3 right-3"
+                  <button
+                    className="absolute top-3 right-3 px-3 py-1 rounded-md font-semibold text-xs bg-gradient-to-r from-purple-400 to-blue-400 text-white border-none shadow-md focus:outline-none hover:from-purple-500 hover:to-blue-500 cursor-pointer disabled:opacity-50 transition-all"
+                    onClick={() => handleJoinRoom(room)}
+                    disabled={joiningRoom === room.id}
+                    type="button"
                   >
-                    <button
-                      className="px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-transparent text-[#18122B] cursor-pointer disabled:opacity-50"
-                      onClick={() => handleJoinRoom(room)}
-                      disabled={joiningRoom === room.id}
-                      type="button"
-                    >
-                      {joiningRoom === room.id ? 'Joining...' : 'Join'}
-                    </button>
-                  </GlareHover>
+                    {joiningRoom === room.id ? 'Joining...' : 'Join'}
+                  </button>
                 ) : (
                   <button
-                    className="absolute top-3 right-3 px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-[#2D2350] text-white cursor-not-allowed"
+                    className="absolute top-3 right-3 px-3 py-1 rounded-md font-semibold text-xs bg-[#2D2350] text-white cursor-not-allowed border-none shadow-md focus:outline-none"
                     disabled={true}
                     type="button"
                   >
