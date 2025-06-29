@@ -13,41 +13,91 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authUser, setAuthUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Al montar, intenta restaurar sesión de Supabase (NO localStorage manual)
+    // Al montar, intenta restaurar sesión de Supabase
     const restoreSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setAuthUser(session.user);
-        // Busca el perfil asociado
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single();
-        if (profileData) setProfile(profileData);
-      } else {
-        setAuthUser(null);
-        setProfile(null);
+      try {
+        console.log('Restoring session...');
+        setLoading(true);
+        
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          return;
+        }
+        
+        const session = data.session;
+        
+        if (session?.user) {
+          console.log('Session found:', session.user.email);
+          setAuthUser(session.user);
+          
+          // Busca el perfil asociado (no bloquea si falla)
+          setTimeout(async () => {
+            try {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+                
+              if (profileData) {
+                console.log('Profile found:', profileData);
+                setProfile(profileData);
+              }
+            } catch (error) {
+              console.log('Profile not found, will be created when needed');
+            }
+          }, 100);
+        } else {
+          console.log('No session found');
+          setAuthUser(null);
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Exception in restoreSession:', error);
+      } finally {
+        setLoading(false);
       }
     };
+    
     restoreSession();
+    
     // Suscribirse a cambios de sesión (login/logout cross-tab)
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event);
+      
       if (session?.user) {
+        console.log('User logged in:', session.user.email);
         setAuthUser(session.user);
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', session.user.id)
-          .single()
-          .then(({ data }) => { if (data) setProfile(data); });
+        
+        // Load profile asynchronously without blocking
+        setTimeout(async () => {
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+              
+            if (data) {
+              console.log('Profile loaded on auth change:', data);
+              setProfile(data);
+            }
+          } catch (error) {
+            console.log('Profile will be created when needed');
+          }
+        }, 100);
       } else {
+        console.log('User logged out');
         setAuthUser(null);
         setProfile(null);
       }
     });
+    
     return () => {
       listener?.subscription.unsubscribe();
     };

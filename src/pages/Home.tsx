@@ -184,21 +184,7 @@ const Home: React.FC = () => {
     try {
       console.log('Joining room:', room.id);
       
-      // Ensure profile exists
-      const { error: profileError } = await supabase.from('profiles').upsert([
-        {
-          user_id: authUser.id,
-          username: authUser.email?.split('@')[0] || 'User',
-          email: authUser.email
-        }
-      ], { onConflict: 'user_id' });
-      
-      if (profileError) {
-        console.error('Profile error:', profileError);
-        throw new Error('Failed to create profile');
-      }
-      
-      // Add to room_users
+      // Add to room_users directly (skip profile creation for now)
       const { error: roomError } = await supabase.from('room_users').upsert([
         { 
           room_id: room.id, 

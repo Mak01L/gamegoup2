@@ -70,42 +70,72 @@ const LoginRegister: React.FC = () => {
     setError(null);
     setSuccess(null);
     setLoading(true);
-    const form = e.currentTarget;
-    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
-    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
-    const remember = (form.elements.namedItem('remember') as HTMLInputElement)?.checked;
-    // Store rememberMe in localStorage for supabaseClient
-    if (remember) {
-      localStorage.setItem('rememberMe', 'true');
-    } else {
-      localStorage.removeItem('rememberMe');
-    }
-    // Re-initialize supabase client with new storage
-    reinitSupabaseClient();
-    await supabase.auth.signOut();
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (loginError) {
-      setError(loginError.message);
-      return;
-    }
-    // Check if profile exists
-    if (data.user) {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('user_id, username, avatar_url, created_at')
-        .eq('user_id', data.user.id)
-        .single();
-      if (profileError || !profile) {
-        setForceProfileUserId(data.user.id);
+    
+    // Safety timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      setError('Login timeout. Please try again.');
+    }, 10000); // 10 seconds timeout
+    
+    try {
+      const form = e.currentTarget;
+      const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+      const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+      const remember = (form.elements.namedItem('remember') as HTMLInputElement)?.checked;
+      
+      // Store rememberMe in localStorage for supabaseClient
+      if (remember) {
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberMe');
+      }
+      
+      // Re-initialize supabase client with new storage
+      reinitSupabaseClient();
+      await supabase.auth.signOut();
+      
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (loginError) {
+        setError(loginError.message);
         setLoading(false);
         return;
-      } else {
-        setAuthUser(data.user);
-        setProfile(profile);
-        setSuccess('Login successful! Redirecting...');
-        setTimeout(() => navigate('/'), 1200);
       }
+      
+      // Set user and redirect immediately
+      if (data.user) {
+        setAuthUser(data.user);
+        setSuccess('Login successful! Redirecting...');
+        setLoading(false);
+        
+        // Load profile asynchronously without blocking
+        setTimeout(async () => {
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', data.user.id)
+              .single();
+            
+            if (profile) {
+              setProfile(profile);
+            }
+          } catch (error) {
+            console.log('Profile not found, will be created later');
+          }
+        }, 100);
+        
+        setTimeout(() => navigate('/'), 800);
+      } else {
+        setError('Login failed');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred');
+      setLoading(false);
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

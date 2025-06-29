@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import RoomModal from '../modals/RoomModal';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { createPortal } from 'react-dom';
+import { supabase } from '../lib/supabaseClient';
+import { useUser } from '../context/UserContext';
 
 const PinnedRoomsSidebar: React.FC = () => {
   const { rooms, maximized, removeRoom, toggleMaximized } = usePinnedRoomsStore();
+  const { authUser } = useUser();
   const [openRoomId, setOpenRoomId] = useState<string | null>(null);
   const openRoom = rooms.find(r => r.id === openRoomId);
   // Obtener info extendida de la sala si está pineada
@@ -44,7 +47,34 @@ const PinnedRoomsSidebar: React.FC = () => {
               </button>
               <button
                 className="px-3 py-1 rounded-lg font-bold text-xs bg-[#2D2350] text-white border-none cursor-pointer hover:bg-purple-900/60 focus:outline-none"
-                onClick={() => removeRoom(room.id)}
+                onClick={async () => {
+                  // Leave room from database
+                  if (authUser) {
+                    try {
+                      console.log(`Attempting to remove user ${authUser.id} from room ${room.id}`);
+                      
+                      const { data, error } = await supabase
+                        .from('room_users')
+                        .delete()
+                        .eq('room_id', room.id)
+                        .eq('user_id', authUser.id);
+                      
+                      if (error) {
+                        console.error('Error leaving room:', error);
+                      } else {
+                        console.log(`Successfully removed user from room:`, data);
+                        
+                        // Trigger manual update of room count
+                        window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+                      }
+                    } catch (error) {
+                      console.error('Exception leaving room:', error);
+                    }
+                  }
+                  
+                  // Remove from sidebar
+                  removeRoom(room.id);
+                }}
                 type="button"
               >
                 Remove
