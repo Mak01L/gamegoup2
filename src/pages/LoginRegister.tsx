@@ -6,6 +6,7 @@ import ProfileModal from '../modals/ProfileModal';
 import SimpleBackgroundParticles from '../components/SimpleBackgroundParticles';
 import ShinyText from '../components/ShinyText';
 import GlareHover from '../components/GlareHover';
+import GoogleAdSense from '../components/GoogleAdSense';
 
 // Add Inter font to the document head
 if (!document.getElementById('inter-font')) {
@@ -218,6 +219,16 @@ const LoginRegister: React.FC = () => {
       {/* Futuristic Glow Effects */}
       <div className="absolute -top-10 -left-10 w-[400px] h-[400px] opacity-50 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #C084FC 0%, transparent 70%)'}} />
       <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #A78BFA 0%, transparent 70%)'}} />
+      {/* Top AdSense Banner */}
+      <div className="w-full max-w-4xl mb-6 z-20 flex justify-center">
+        <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
+          <GoogleAdSense 
+            adSlot="YOUR_TOP_AD_SLOT_ID"
+            style={{ display: 'block', minHeight: '90px', width: '100%' }}
+          />
+        </div>
+      </div>
+      
       {/* Header */}
       <div className="mb-6 text-center z-20">
         <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto mb-3 drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
@@ -341,6 +352,16 @@ const LoginRegister: React.FC = () => {
             </div>
           </form>
         )}
+      </div>
+      
+      {/* Bottom AdSense Banner */}
+      <div className="w-full max-w-4xl mt-6 z-20 flex justify-center">
+        <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
+          <GoogleAdSense 
+            adSlot="YOUR_BOTTOM_AD_SLOT_ID"
+            style={{ display: 'block', minHeight: '90px', width: '100%' }}
+          />
+        </div>
       </div>
       {/* Forgot password modal */}
       {showForgot && (
