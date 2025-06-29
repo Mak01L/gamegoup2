@@ -11,9 +11,6 @@ import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
 import GlareHover from '../components/GlareHover';
-// Temporarily comment out problematic imports
-// import NotificationSystem from '../components/NotificationSystem';
-// import { useUserPresence } from '../hooks/useUserPresence';
 
 interface Room {
   id: string;
@@ -42,12 +39,10 @@ const Home: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
 
   const { rooms: pinnedRooms, addRoom } = usePinnedRoomsStore();
   const { authUser } = useUser();
-  
-  // Temporarily comment out user presence tracking
-  // useUserPresence();
 
   // Auto-refresh on mount to show current user counts
   useEffect(() => {
@@ -64,7 +59,7 @@ const Home: React.FC = () => {
       if (deletedRoomIds.length > 0) {
         setRooms(prevRooms => prevRooms.filter(room => !deletedRoomIds.includes(room.id)));
       }
-    }, 30000); // Every 30 seconds
+    }, 30000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
@@ -98,14 +93,12 @@ const Home: React.FC = () => {
       .channel('rooms-global')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, async (payload) => {
         console.log('New room created globally:', payload.new.id);
-        // Add new room to local state with user count
         const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
         const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
         setRooms(prevRooms => [newRoom, ...prevRooms]);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms' }, (payload) => {
         console.log('Room deleted globally:', payload.old.id);
-        // Remove deleted room from local state for all users
         setRooms(prevRooms => prevRooms.filter(room => room.id !== payload.old.id));
       })
       .subscribe();
@@ -119,52 +112,57 @@ const Home: React.FC = () => {
     setLoading(true);
     setError(null);
     
-    let query = supabase.from('rooms').select('*').eq('is_active', true);
-    if (filters.name) query = query.ilike('name', `%${filters.name}%`);
-    if (filters.game) query = query.eq('game', filters.game);
-    if (filters.region) query = query.eq('region', filters.region);
-    if (filters.language) query = query.eq('language', filters.language);
-    if (filters.country) query = query.eq('country', filters.country);
-    const { data, error } = await query.order('created_at', { ascending: false });
-    
-    if (error) {
-      setError(error.message);
-    } else if (data) {
-      // Get user count and user previews for each room
-      const roomsWithUserCount = await Promise.all(
-        data.map(async (room) => {
-          const { data: roomUsers } = await supabase
-            .from('room_users')
-            .select('user_id')
-            .eq('room_id', room.id)
-            .limit(3); // Only get first 3 users for preview
-          
-          // Get profiles for preview users
-          const userPreviews = await Promise.all(
-            (roomUsers || []).map(async (roomUser) => {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('user_id', roomUser.user_id)
-                .single();
-              
-              return {
-                username: profile?.username || 'User',
-                avatar_url: profile?.avatar_url || '/default-avatar.png'
-              };
-            })
-          );
-          
-          return { 
-            ...room, 
-            user_count: roomUsers?.length || 0,
-            user_previews: userPreviews
-          };
-        })
-      );
-      setRooms(roomsWithUserCount);
+    try {
+      let query = supabase.from('rooms').select('*').eq('is_active', true);
+      if (filters.name) query = query.ilike('name', `%${filters.name}%`);
+      if (filters.game) query = query.eq('game', filters.game);
+      if (filters.region) query = query.eq('region', filters.region);
+      if (filters.language) query = query.eq('language', filters.language);
+      if (filters.country) query = query.eq('country', filters.country);
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) {
+        setError(error.message);
+      } else if (data) {
+        const roomsWithUserCount = await Promise.all(
+          data.map(async (room) => {
+            const { data: roomUsers } = await supabase
+              .from('room_users')
+              .select('user_id')
+              .eq('room_id', room.id)
+              .limit(3);
+            
+            const userPreviews = await Promise.all(
+              (roomUsers || []).map(async (roomUser) => {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('username, avatar_url')
+                  .eq('user_id', roomUser.user_id)
+                  .single();
+                
+                return {
+                  username: profile?.username || 'User',
+                  avatar_url: profile?.avatar_url || '/default-avatar.png'
+                };
+              })
+            );
+            
+            return { 
+              ...room, 
+              user_count: roomUsers?.length || 0,
+              user_previews: userPreviews
+            };
+          })
+        );
+        setRooms(roomsWithUserCount);
+      }
+    } catch (err) {
+      console.error('Error fetching rooms:', err);
+      setError('Failed to load rooms');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleClear = () => {
@@ -175,29 +173,86 @@ const Home: React.FC = () => {
 
   const handleRoomCreated = (room: Room) => {
     setShowCreateModal(false);
-    addRoom({ id: room.id, name: room.name, game: room.game }); // Pin room automatically
-    handleApply(); // Refresh room list
+    addRoom({ id: room.id, name: room.name, game: room.game });
+    handleApply();
+  };
+
+  const handleJoinRoom = async (room: Room) => {
+    if (!authUser || joiningRoom) return;
+    
+    setJoiningRoom(room.id);
+    
+    try {
+      console.log('Joining room:', room.id);
+      
+      // Ensure profile exists
+      const { error: profileError } = await supabase.from('profiles').upsert([
+        {
+          user_id: authUser.id,
+          username: authUser.email?.split('@')[0] || 'User',
+          email: authUser.email
+        }
+      ], { onConflict: 'user_id' });
+      
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        throw new Error('Failed to create profile');
+      }
+      
+      // Add to room_users
+      const { error: roomError } = await supabase.from('room_users').upsert([
+        { 
+          room_id: room.id, 
+          user_id: authUser.id,
+          joined_at: new Date().toISOString()
+        }
+      ], { onConflict: 'room_id,user_id' });
+      
+      if (roomError) {
+        console.error('Room join error:', roomError);
+        throw new Error('Failed to join room');
+      }
+      
+      // Add to pinned rooms
+      addRoom({ id: room.id, name: room.name, game: room.game });
+      
+      // Trigger room count update
+      window.dispatchEvent(new CustomEvent('roomUserChanged', { 
+        detail: { roomId: room.id } 
+      }));
+      
+      console.log('Successfully joined room:', room.id);
+      
+    } catch (error) {
+      console.error('Error joining room:', error);
+      alert('Failed to join room. Please try again.');
+    } finally {
+      setJoiningRoom(null);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white flex flex-row relative">
       <BackgroundParticles />
+      
       {/* Sidebar for pinned rooms */}
       <div className="min-w-[90px] max-w-[220px] w-[18vw] bg-[#281e46]/[0.55] border-r border-purple-400/30 flex flex-col z-20">
         <PinnedRoomsSidebar />
         <AdBanner position="sidebar" />
       </div>
+      
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center py-8 relative">
         {/* User menu top right */}
         <div className="absolute top-6 right-8 z-10 flex items-center gap-4">
-          {/* Temporarily removed NotificationSystem */}
           <UserMenu />
         </div>
+        
         {/* Logo */}
         <div className="text-center mb-6 mt-4">
           <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
         </div>
+        
         {/* Filters and buttons */}
         <div className="w-full max-w-[540px] mx-auto bg-[#281e46]/[0.55] rounded-2xl shadow-lg p-7 mb-4 relative">
           <AdBanner position="top" />
@@ -223,6 +278,7 @@ const Home: React.FC = () => {
             </GlareHover>
           </div>
         </div>
+        
         {/* Room search results */}
         <div className="w-full max-w-[900px] mx-auto">
           {loading && <div className="text-center">Loading rooms...</div>}
@@ -230,6 +286,7 @@ const Home: React.FC = () => {
           {rooms.length === 0 && !loading && (
             <div className="text-gray-400 text-center">No rooms found.</div>
           )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room: Room) => (
               <div
@@ -240,6 +297,7 @@ const Home: React.FC = () => {
                 <div className="text-purple-100 text-sm">{room.game}</div>
                 <div className="text-purple-100 text-xs">{room.region} | {room.language} {room.country ? `| ${room.country}` : ''}</div>
                 {room.description && <div className="text-gray-400 text-xs line-clamp-2">{room.description}</div>}
+                
                 {/* User previews */}
                 {room.user_previews && room.user_previews.length > 0 && (
                   <div className="flex items-center gap-2 mt-2">
@@ -260,6 +318,7 @@ const Home: React.FC = () => {
                     </div>
                   </div>
                 )}
+                
                 <div className="flex justify-between items-center mt-auto">
                   <div className="text-gray-400 text-xs">
                     Created: {new Date(room.created_at).toLocaleDateString()}
@@ -268,7 +327,9 @@ const Home: React.FC = () => {
                     👥 {room.user_count || 0} users
                   </div>
                 </div>
-                {!pinnedRooms.some((r: Room) => r.id === room.id) ? (
+                
+                {/* Join/Joined button */}
+                {!pinnedRooms.some((r: any) => r.id === room.id) ? (
                   <GlareHover
                     width="auto"
                     height="auto"
@@ -281,33 +342,12 @@ const Home: React.FC = () => {
                     className="absolute top-3 right-3"
                   >
                     <button
-                      className="px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-transparent text-[#18122B] cursor-pointer"
-                      onClick={async () => {
-                        // Ensure profile exists before joining room
-                        if (authUser) {
-                          // Create/update profile first
-                          await supabase.from('profiles').upsert([
-                            {
-                              user_id: authUser.id,
-                              username: authUser.email?.split('@')[0] || 'User'
-                            }
-                          ], { onConflict: 'user_id' });
-                          
-                          // Then add to room_users
-                          const { error } = await supabase.from('room_users').upsert([
-                            { room_id: room.id, user_id: authUser.id }
-                          ], { onConflict: 'room_id,user_id' });
-                          
-                          if (!error) {
-                            // Trigger manual update of room count
-                            window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
-                          }
-                        }
-                        addRoom({ id: room.id, name: room.name, game: room.game });
-                      }}
+                      className="px-2 py-1 rounded-md font-semibold text-xs border-none shadow-md focus:outline-none bg-transparent text-[#18122B] cursor-pointer disabled:opacity-50"
+                      onClick={() => handleJoinRoom(room)}
+                      disabled={joiningRoom === room.id}
                       type="button"
                     >
-                      Join
+                      {joiningRoom === room.id ? 'Joining...' : 'Join'}
                     </button>
                   </GlareHover>
                 ) : (
@@ -323,6 +363,7 @@ const Home: React.FC = () => {
             ))}
           </div>
         </div>
+        
         {/* Modal para crear sala */}
         {showCreateModal && (
           <CreateRoomModal
@@ -331,6 +372,7 @@ const Home: React.FC = () => {
           />
         )}
       </div>
+      
       <Footer />
     </div>
   );
