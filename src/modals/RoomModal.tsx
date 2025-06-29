@@ -43,7 +43,10 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<RoomUser[]>([]);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
+  const [userCount, setUserCount] = useState(0); // Background counter
+  const [isUpdating, setIsUpdating] = useState(false); // Prevent flicker
   const chatRef = useRef<HTMLDivElement>(null);
+  const lastUpdateRef = useRef<number>(0);
   const { authUser, profile } = useUser();
   const addRoom = usePinnedRoomsStore(state => state.addRoom);
   const removeRoom = usePinnedRoomsStore(state => state.removeRoom);
@@ -140,10 +143,19 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     };
   }, [room.id, authUser?.id]);
 
-  // Fetch users helper (must be defined before use)
-  const fetchUsers = useCallback(async () => {
+  // Fetch users helper with anti-flicker logic
+  const fetchUsers = useCallback(async (eventType: 'background' | 'user_change' | 'initial' = 'background') => {
     try {
-      console.log(`Fetching users for room ${room.id}`);
+      const now = Date.now();
+      
+      // Debounce rapid updates
+      if (eventType === 'background' && now - lastUpdateRef.current < 2000) {
+        return;
+      }
+      
+      if (eventType !== 'initial') {
+        console.log(`🔄 Fetching users (${eventType}) for room ${room.id}`);
+      }
       
       // First get room_users
       const { data: roomUsers, error: roomUsersError } = await supabase
@@ -156,43 +168,82 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
         return;
       }
       
+      // Update background counter always
+      setUserCount(roomUsers?.length || 0);
+      
       if (!roomUsers || roomUsers.length === 0) {
-        console.log(`No users found in room ${room.id}`);
-        setUsers([]);
+        if (eventType !== 'background') {
+          console.log(`No users found in room ${room.id}`);
+          setUsers([]);
+        }
         return;
       }
       
-      console.log(`Found ${roomUsers.length} users in room_users table:`, roomUsers);
+      if (eventType !== 'background') {
+        console.log(`Found ${roomUsers.length} users in room_users table`);
+      }
       
-      // Then get profiles for each user, create if missing
-      const usersWithProfiles = await Promise.all(
-        roomUsers.map(async (roomUser) => {
-          let { data: profile } = await supabase
-            .from('profiles')
-            .select('username, email, avatar_url')
-            .eq('user_id', roomUser.user_id)
-            .single();
-          
-          // If no profile exists, DON'T create a fake one - let user create their own
-          if (!profile) {
-            console.log(`No profile found for user ${roomUser.user_id} - user needs to create profile`);
-            // Don't create fake profiles - return null and let user create their own
-            profile = null;
-          }
-          
-          return {
-            ...roomUser,
-            profile: profile || {
-              username: `User_${roomUser.user_id.slice(0, 8)}`,
-              email: 'No profile created',
-              avatar_url: '/default-avatar.png'
+      // Only update UI for important events
+      if (eventType === 'user_change' || eventType === 'initial') {
+        setIsUpdating(true);
+        
+        // Then get profiles for each user - show real data only
+        const usersWithProfiles = await Promise.all(
+          roomUsers.map(async (roomUser) => {
+            if (eventType === 'initial') {
+              console.log(`🔍 Fetching profile for user: ${roomUser.user_id}`);
             }
-          };
-        })
-      );
+            
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('username, avatar_url, bio, country, game_tags')
+              .eq('user_id', roomUser.user_id)
+              .single();
+            
+            if (eventType === 'initial') {
+              if (profileError) {
+                console.log(`❌ No profile found for user ${roomUser.user_id}:`, profileError);
+              } else {
+                console.log(`✅ Profile found for user ${roomUser.user_id}:`, profile);
+              }
+            }
+            
+            // Only show real profile data - no fake data
+            const userWithProfile = {
+              ...roomUser,
+              profile: profile ? {
+                username: profile.username || 'No username set',
+                email: 'User profile exists',
+                avatar_url: profile.avatar_url || '/default-avatar.png',
+                bio: profile.bio,
+                country: profile.country,
+                game_tags: profile.game_tags
+              } : {
+                username: 'No profile',
+                email: 'User has not created profile',
+                avatar_url: '/default-avatar.png',
+                bio: null,
+                country: null,
+                game_tags: null
+              }
+            };
+            
+            if (eventType === 'initial') {
+              console.log(`👤 Final user data for ${roomUser.user_id}:`, userWithProfile.profile);
+            }
+            return userWithProfile;
+          })
+        );
+        
+        if (eventType === 'initial') {
+          console.log(`Room ${room.id} users with profiles:`, usersWithProfiles);
+        }
+        
+        setUsers(usersWithProfiles);
+        setIsUpdating(false);
+      }
       
-      console.log(`Room ${room.id} users with profiles:`, usersWithProfiles);
-      setUsers(usersWithProfiles);
+      lastUpdateRef.current = now;
     } catch (error) {
       console.error('Exception in fetchUsers:', error);
       setUsers([]);
@@ -204,20 +255,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     const joinRoom = async () => {
       if (!authUser) return;
       try {
-        // 1. Ensure user profile exists first
-        const { error: profileError } = await supabase.from('profiles').upsert([
-          {
-            user_id: authUser.id,
-            username: profile?.username || authUser.email?.split('@')[0] || 'User'
-          }
-        ], { onConflict: 'user_id' });
-        
-        if (profileError) {
-          console.error('Error creating/updating profile:', profileError);
-          return;
-        }
-        
-        // 2. Now safely add to room_users
+        // Add user to room_users directly - no profile creation
         console.log(`Adding user ${authUser.id} to room ${room.id}`);
         const { error: roomUserError } = await supabase.from('room_users').upsert([
           { room_id: room.id, user_id: authUser.id }
@@ -227,11 +265,11 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
           console.error('Error adding user to room:', roomUserError);
         } else {
           console.log('User successfully added to room');
-          // Trigger manual update of room count
-          window.dispatchEvent(new CustomEvent('roomUserChanged', { detail: { roomId: room.id } }));
+          // Background update only - no UI flicker
+          setTimeout(() => fetchUsers('background'), 1000);
         }
         
-        // 3. Pin room in sidebar
+        // Pin room in sidebar
         addRoom({ id: room.id, name: room.name, game: room.game });
       } catch (error) {
         console.error('Error in joinRoom:', error);
@@ -243,20 +281,42 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
     }
     
     // No cleanup - user stays in room when modal closes
-  }, [room.id, authUser?.id]);
+  }, [room.id, authUser?.id, fetchUsers]);
 
-  // Subscribe to room users in real time
+  // Subscribe to room users in real time with event-based updates
   useEffect(() => {
     let subscription: any;
-    fetchUsers();
+    
+    // Initial load
+    fetchUsers('initial');
+    
+    // Subscribe to user changes (visible updates)
     subscription = supabase
       .channel('room-users-' + room.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_users', filter: `room_id=eq.${room.id}` }, fetchUsers)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'room_users', 
+        filter: `room_id=eq.${room.id}` 
+      }, () => {
+        console.log('👤 User joined room - updating UI');
+        fetchUsers('user_change');
+      })
+      .on('postgres_changes', { 
+        event: 'DELETE', 
+        schema: 'public', 
+        table: 'room_users', 
+        filter: `room_id=eq.${room.id}` 
+      }, () => {
+        console.log('👤 User left room - updating UI');
+        fetchUsers('user_change');
+      })
       .subscribe();
+    
     return () => {
       if (subscription) supabase.removeChannel(subscription);
     };
-  }, [room.id]);
+  }, [room.id, fetchUsers]);
 
   useEffect(() => {
     if (chatRef.current) {
@@ -458,17 +518,22 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
           </div>
           {/* Room Users */}
           <div className="bg-[#221b3a]/80 rounded-xl p-4 mt-2 border border-purple-800">
-            <h3 className="text-md font-semibold text-purple-300 mb-3">Room Users</h3>
-            <div className="flex flex-wrap gap-3">
+            <h3 className="text-md font-semibold text-purple-300 mb-3">
+              Room Users ({userCount})
+            </h3>
+            <div className={`flex flex-wrap gap-3 transition-opacity duration-200 ${isUpdating ? 'opacity-70' : 'opacity-100'}`}>
               {users.length === 0 ? (
                 <div className="text-gray-400 text-sm">No users in this room</div>
               ) : (
                 users.map(user => (
-                  <div key={user.id} className="flex items-center gap-3 bg-[#232046]/80 px-3 py-2 rounded-lg border border-purple-800 min-w-[180px]">
+                  <div 
+                    key={user.id} 
+                    className="flex items-center gap-3 bg-[#232046]/80 px-3 py-2 rounded-lg border border-purple-800 min-w-[180px] transition-all duration-300 hover:bg-[#2a2458]/80"
+                  >
                     <img 
                       src={user.profile?.avatar_url || '/default-avatar.png'} 
                       alt={user.profile?.username || 'User'} 
-                      className="w-9 h-9 rounded-full border-2 border-purple-400 object-cover bg-[#18122B]" 
+                      className="w-9 h-9 rounded-full border-2 border-purple-400 object-cover bg-[#18122B] transition-transform duration-200 hover:scale-105" 
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.src = '/default-avatar.png';
@@ -488,7 +553,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
                       )}
                       <button
                         onClick={() => handleViewProfile(user.user_id)}
-                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full px-3 py-1 font-semibold shadow hover:from-blue-600 hover:to-purple-600"
+                        className="text-xs bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full px-3 py-1 font-semibold shadow hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
                       >
                         View Profile
                       </button>

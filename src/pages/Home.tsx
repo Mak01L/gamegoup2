@@ -53,20 +53,21 @@ const Home: React.FC = () => {
     }
   }, [authUser]);
 
-  // Automatic cleanup of empty rooms every 2 minutes (reduced frequency)
+  // Silent cleanup of empty rooms every 5 minutes
   useEffect(() => {
     const cleanupInterval = setInterval(async () => {
-      console.log('Running automatic cleanup of empty rooms...');
+      console.log('🧹 Silent cleanup of empty rooms...');
       const deletedRoomIds = await cleanEmptyRooms();
       if (deletedRoomIds.length > 0) {
+        console.log(`🗑️ Removed ${deletedRoomIds.length} empty rooms`);
         setRooms(prevRooms => prevRooms.filter(room => !deletedRoomIds.includes(room.id)));
       }
-    }, 120000); // Changed from 30s to 2 minutes
+    }, 300000);
 
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // Manual room count updates via custom events (debounced)
+  // Background room count updates (invisible)
   useEffect(() => {
     let updateTimeout: number;
     
@@ -78,20 +79,23 @@ const Home: React.FC = () => {
         window.clearTimeout(updateTimeout);
       }
       
-      // Debounce updates by 1 second
+      // Debounce updates by 3 seconds for smoother experience
       updateTimeout = window.setTimeout(async () => {
-        console.log('Manual room count update for:', roomId);
+        console.log('🔄 Background room count update for:', roomId);
         
         const { data: users } = await supabase.from('room_users').select('id').eq('room_id', roomId);
         const userCount = users?.length || 0;
-        console.log(`Updating room ${roomId} to ${userCount} users`);
         
+        // Silent update - only if count actually changed
         setRooms(prevRooms => {
-          return prevRooms.map(room => 
-            room.id === roomId ? { ...room, user_count: userCount } : room
-          );
+          return prevRooms.map(room => {
+            if (room.id === roomId && room.user_count !== userCount) {
+              return { ...room, user_count: userCount };
+            }
+            return room;
+          });
         });
-      }, 1000);
+      }, 3000);
     };
 
     window.addEventListener('roomUserChanged', updateRoomCount);
