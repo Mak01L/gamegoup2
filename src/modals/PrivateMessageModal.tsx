@@ -94,7 +94,7 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
       if (data) {
         const formattedMessages = data.map(msg => ({
           ...msg,
-          sender_username: msg.profiles?.username || 'Unknown'
+          sender_username: (msg.profiles as any)?.username || 'Unknown'
         }));
         setMessages(formattedMessages);
       }
@@ -126,7 +126,7 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
         const newMsg = {
           ...data,
           sender_username: 'You'
-        };
+        } as Message;
         setMessages(prev => [...prev, newMsg]);
         setNewMessage('');
 

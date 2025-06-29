@@ -95,19 +95,44 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
       
       if (error) {
         console.error('Error fetching profile:', error);
-        // If profile doesn't exist, create minimal one
-        if (error.code === 'PGRST116' && authUser) {
+        // If profile doesn't exist, create minimal one for ANY user
+        if (error.code === 'PGRST116') {
+          console.log('Profile not found, creating minimal profile for user:', id);
+          
+          // Get user email from auth.users if possible
+          const { data: authData } = await supabase.auth.admin.getUserById(id);
+          const userEmail = authData?.user?.email;
+          
           const minimalProfile = {
-            user_id: authUser.id,
-            username: authUser.email?.split('@')[0] || 'User'
+            user_id: id,
+            username: userEmail?.split('@')[0] || `User_${id.slice(0, 8)}`,
+            email: userEmail || null,
+            avatar_url: '/default-avatar.png',
+            created_at: new Date().toISOString()
           };
-          await supabase.from('profiles').upsert(minimalProfile, { onConflict: 'user_id' });
-          // Retry fetch
-          const { data: retryData } = await supabase.from('profiles').select('*').eq('user_id', id).single();
-          if (retryData) {
-            populateFields(retryData);
+          
+          const { error: createError } = await supabase
+            .from('profiles')
+            .upsert(minimalProfile, { onConflict: 'user_id' });
+          
+          if (!createError) {
+            // Retry fetch after creating
+            const { data: retryData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', id)
+              .single();
+            
+            if (retryData) {
+              populateFields(retryData);
+              return;
+            }
           }
         }
+        
+        // If still no profile, show basic info
+        setUsername(`User_${id.slice(0, 8)}`);
+        setAvatarUrl('/default-avatar.png');
         return;
       }
       

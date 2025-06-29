@@ -52,7 +52,7 @@ const Home: React.FC = () => {
     }
   }, [authUser]);
 
-  // Automatic cleanup of empty rooms every 30 seconds
+  // Automatic cleanup of empty rooms every 2 minutes (reduced frequency)
   useEffect(() => {
     const cleanupInterval = setInterval(async () => {
       console.log('Running automatic cleanup of empty rooms...');
@@ -60,43 +60,73 @@ const Home: React.FC = () => {
       if (deletedRoomIds.length > 0) {
         setRooms(prevRooms => prevRooms.filter(room => !deletedRoomIds.includes(room.id)));
       }
-    }, 30000);
+    }, 120000); // Changed from 30s to 2 minutes
 
     return () => clearInterval(cleanupInterval);
   }, []);
 
-  // Manual room count updates via custom events
+  // Manual room count updates via custom events (debounced)
   useEffect(() => {
+    let updateTimeout: NodeJS.Timeout;
+    
     const updateRoomCount = async (event: any) => {
       const roomId = event.detail.roomId;
-      console.log('Manual room count update for:', roomId);
       
-      const { data: users } = await supabase.from('room_users').select('id').eq('room_id', roomId);
-      const userCount = users?.length || 0;
-      console.log(`Updating room ${roomId} to ${userCount} users`);
+      // Clear previous timeout to debounce rapid updates
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
       
-      setRooms(prevRooms => {
-        return prevRooms.map(room => 
-          room.id === roomId ? { ...room, user_count: userCount } : room
-        );
-      });
+      // Debounce updates by 1 second
+      updateTimeout = setTimeout(async () => {
+        console.log('Manual room count update for:', roomId);
+        
+        const { data: users } = await supabase.from('room_users').select('id').eq('room_id', roomId);
+        const userCount = users?.length || 0;
+        console.log(`Updating room ${roomId} to ${userCount} users`);
+        
+        setRooms(prevRooms => {
+          return prevRooms.map(room => 
+            room.id === roomId ? { ...room, user_count: userCount } : room
+          );
+        });
+      }, 1000);
     };
 
     window.addEventListener('roomUserChanged', updateRoomCount);
     return () => {
       window.removeEventListener('roomUserChanged', updateRoomCount);
+      if (updateTimeout) {
+        clearTimeout(updateTimeout);
+      }
     };
   }, []);
 
-  // Global subscription to detect room changes (creation and deletion)
+  // Global subscription to detect room changes (optimized)
   useEffect(() => {
+    let subscriptionTimeout: NodeJS.Timeout;
+    
     const subscription = supabase
-      .channel('rooms-global')
+      .channel('rooms-global-optimized')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, async (payload) => {
         console.log('New room created globally:', payload.new.id);
-        const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
-        const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
-        setRooms(prevRooms => [newRoom, ...prevRooms]);
+        
+        // Debounce room additions
+        if (subscriptionTimeout) {
+          clearTimeout(subscriptionTimeout);
+        }
+        
+        subscriptionTimeout = setTimeout(async () => {
+          const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
+          const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
+          
+          setRooms(prevRooms => {
+            // Check if room already exists to prevent duplicates
+            const exists = prevRooms.some(room => room.id === newRoom.id);
+            if (exists) return prevRooms;
+            return [newRoom, ...prevRooms];
+          });
+        }, 500);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms' }, (payload) => {
         console.log('Room deleted globally:', payload.old.id);
@@ -105,6 +135,9 @@ const Home: React.FC = () => {
       .subscribe();
 
     return () => {
+      if (subscriptionTimeout) {
+        clearTimeout(subscriptionTimeout);
+      }
       supabase.removeChannel(subscription);
     };
   }, []);
