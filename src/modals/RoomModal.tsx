@@ -198,7 +198,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
               .from('profiles')
               .select('username, avatar_url, bio, country, game_tags')
               .eq('user_id', roomUser.user_id)
-              .single();
+              .maybeSingle();
             
             if (eventType === 'initial') {
               if (profileError) {
@@ -221,7 +221,7 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
               } : {
                 username: 'No profile',
                 email: 'User has not created profile',
-                avatar_url: '/default-avatar.png',
+                avatar_url: 'https://ui-avatars.com/api/?name=No+Profile&background=6366f1&color=fff',
                 bio: null,
                 country: null,
                 game_tags: null
