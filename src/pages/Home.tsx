@@ -11,6 +11,7 @@ import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
 import FeedbackModal from '../modals/FeedbackModal';
+import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 
 interface Room {
   id: string;
@@ -175,9 +176,17 @@ const Home: React.FC = () => {
                   .eq('user_id', roomUser.user_id)
                   .single();
                 
+                // Only show users who have created profiles
+                if (!profile || !profile.username) {
+                  return {
+                    username: `User_${roomUser.user_id.slice(0, 8)}`,
+                    avatar_url: '/default-avatar.png'
+                  };
+                }
+                
                 return {
-                  username: profile?.username || 'User',
-                  avatar_url: profile?.avatar_url || '/default-avatar.png'
+                  username: profile.username,
+                  avatar_url: profile.avatar_url || '/default-avatar.png'
                 };
               })
             );
@@ -283,6 +292,11 @@ const Home: React.FC = () => {
         {/* Logo */}
         <div className="text-center mb-6 mt-4">
           <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
+        </div>
+        
+        {/* Profile completion banner */}
+        <div className="w-full max-w-[540px] mx-auto mb-4">
+          <ProfileCompletionBanner />
         </div>
         
         {/* Filters and buttons */}

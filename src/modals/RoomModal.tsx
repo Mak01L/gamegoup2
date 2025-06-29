@@ -173,38 +173,19 @@ const RoomModal: React.FC<RoomModalProps> = ({ room, onClose, onRoomLeft }) => {
             .eq('user_id', roomUser.user_id)
             .single();
           
-          // If no profile exists, try to create one
+          // If no profile exists, DON'T create a fake one - let user create their own
           if (!profile) {
-            console.log(`Creating missing profile for user ${roomUser.user_id}`);
-            
-            // Try to get user info from auth to create profile
-            const { data: authUser } = await supabase.auth.getUser();
-            let username = 'User';
-            
-            // If it's the current user, we can get their email
-            if (authUser?.user?.id === roomUser.user_id && authUser.user.email) {
-              username = authUser.user.email.split('@')[0];
-            }
-            
-            // Create the profile
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .upsert({
-                user_id: roomUser.user_id,
-                username: username
-              }, { onConflict: 'user_id' })
-              .select()
-              .single();
-            
-            profile = newProfile;
+            console.log(`No profile found for user ${roomUser.user_id} - user needs to create profile`);
+            // Don't create fake profiles - return null and let user create their own
+            profile = null;
           }
           
           return {
             ...roomUser,
             profile: profile || {
-              username: 'User',
-              email: '',
-              avatar_url: null
+              username: `User_${roomUser.user_id.slice(0, 8)}`,
+              email: 'No profile created',
+              avatar_url: '/default-avatar.png'
             }
           };
         })

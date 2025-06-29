@@ -19,8 +19,19 @@ const UserMenu: React.FC = () => {
         setOpen(false);
       }
     };
+    
+    const handleOpenProfile = () => {
+      setShowProfile(true);
+      setOpen(false);
+    };
+    
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('openProfileModal', handleOpenProfile);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('openProfileModal', handleOpenProfile);
+    };
   }, []);
 
   const handleLogout = async () => {
