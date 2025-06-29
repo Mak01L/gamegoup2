@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import GlareHover from '../components/GlareHover';
+import PrivateMessageModal from './PrivateMessageModal';
 // You must create this JSON file with the structure { "Country": ["City1", "City2", ...], ... }
 // Example: { "Argentina": ["Buenos Aires", "Córdoba"], "Mexico": ["Mexico City", "Guadalajara"] }
 import countriesDataRaw from '../assets/countries_cities.json';
@@ -33,6 +34,8 @@ const socialTypes = [
 const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   const { authUser, profile: selfProfile, setProfile } = useUser();
   const isSelf = !userId || userId === authUser?.id;
+  
+  // Debug logs (removed for production)
   // The modal starts in read-only mode if userId is present
   const [editMode, setEditMode] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -54,6 +57,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMessageModal, setShowMessageModal] = useState(false);
 
   // Reinforces: clear local states when closing the modal
   const handleClose = () => {
@@ -425,68 +429,96 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
           </div>
         </div>
         {/* Action buttons for other users */}
-        {!isSelf && (
+        {!isSelf && userId && authUser && (
           <div className="flex gap-3 mt-6">
-            <GlareHover
-              width="50%"
-              height="auto"
-              background="linear-gradient(to right, #8b5cf6, #3b82f6)"
-              borderRadius="12px"
-              borderColor="transparent"
-              glareColor="#ffffff"
-              glareOpacity={0.3}
-            >
-              <button 
-                onClick={async () => {
-                  if (!authUser || !userId) return;
-                  await supabase.from('friend_requests').insert({
+            <button 
+              onClick={async () => {
+                console.log('🤝 ADD FRIEND CLICKED!');
+                
+                if (!authUser || !userId) {
+                  setError('Missing user data');
+                  return;
+                }
+                
+                try {
+                  const { error } = await supabase.from('friend_requests').insert({
                     sender_id: authUser.id,
                     receiver_id: userId,
                     status: 'pending'
                   });
-                  setSuccess('Friend request sent!');
-                }}
-                className="w-full bg-transparent text-white px-4 py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
-              >
-                🤝 Add Friend
-              </button>
-            </GlareHover>
-            
-            <GlareHover
-              width="50%"
-              height="auto"
-              background="linear-gradient(to right, #10b981, #06b6d4)"
-              borderRadius="12px"
-              borderColor="transparent"
-              glareColor="#ffffff"
-              glareOpacity={0.3}
+                  
+                  if (error) {
+                    console.error('Friend request error:', error);
+                    setError('Error: ' + error.message);
+                  } else {
+                    console.log('Friend request sent successfully!');
+                    setSuccess('✅ Friend request sent!');
+                  }
+                } catch (error) {
+                  console.error('Friend request exception:', error);
+                  setError('❌ Failed to send friend request');
+                }
+              }}
+              className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-600 hover:to-blue-600 transition-all"
             >
-              <button 
-                onClick={async () => {
-                  if (!authUser || !userId) return;
-                  // Create or find conversation
-                  const { data: existing } = await supabase
+              🤝 Add Friend
+            </button>
+            
+            <button 
+              onClick={async () => {
+                console.log('💬 MESSAGE CLICKED!');
+                
+                if (!authUser || !userId) {
+                  setError('Missing user data');
+                  return;
+                }
+                
+                try {
+                  // Check if conversation exists
+                  const { data: existing, error: findError } = await supabase
                     .from('private_conversations')
                     .select('id')
                     .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${authUser.id})`)
-                    .single();
+                    .maybeSingle();
                   
-                  if (!existing) {
-                    await supabase.from('private_conversations').insert({
-                      user1_id: authUser.id,
-                      user2_id: userId,
-                      last_message_at: new Date().toISOString()
-                    });
+                  if (findError) {
+                    console.error('Error finding conversation:', findError);
                   }
                   
-                  setSuccess('Conversation started!');
-                  handleClose();
-                }}
-                className="w-full bg-transparent text-white px-4 py-2 rounded-xl font-semibold flex items-center justify-center gap-2"
-              >
-                💬 Message
-              </button>
-            </GlareHover>
+                  if (!existing) {
+                    console.log('Creating new conversation...');
+                    // Create new conversation
+                    const { error } = await supabase
+                      .from('private_conversations')
+                      .insert({
+                        user1_id: authUser.id,
+                        user2_id: userId,
+                        last_message_at: new Date().toISOString()
+                      });
+                    
+                    if (error) {
+                      console.error('Error creating conversation:', error);
+                      setError('❌ Error: ' + error.message);
+                      return;
+                    }
+                    console.log('New conversation created!');
+                  } else {
+                    console.log('Existing conversation found:', existing);
+                  }
+                  
+                  setSuccess('✅ Opening private message...');
+                  setTimeout(() => {
+                    setShowMessageModal(true);
+                  }, 500);
+                } catch (error) {
+                  console.error('Message exception:', error);
+                  setError('❌ Failed to start conversation');
+                }
+              }}
+              className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-green-600 hover:to-teal-600 transition-all"
+            >
+              💬 Message
+            </button>
           </div>
         )}
         
@@ -506,6 +538,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
         {success && <div className="text-green-400 text-sm mt-2">{success}</div>}
       </div>
+      
+      {/* Private Message Modal */}
+      {showMessageModal && userId && (
+        <PrivateMessageModal
+          onClose={() => setShowMessageModal(false)}
+          otherUserId={userId}
+          otherUsername={username || 'User'}
+        />
+      )}
     </div>
   );
 };

@@ -10,6 +10,7 @@ import BackgroundParticles from '../components/BackgroundParticles';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
 import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
+import FeedbackModal from '../modals/FeedbackModal';
 
 interface Room {
   id: string;
@@ -39,6 +40,7 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   const { rooms: pinnedRooms, addRoom } = usePinnedRoomsStore();
   const { authUser } = useUser();
@@ -233,8 +235,15 @@ const Home: React.FC = () => {
       
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center py-8 relative">
-        {/* User menu top right */}
+        {/* User menu and feedback button top right */}
         <div className="absolute top-6 right-8 z-10 flex items-center gap-4">
+          <button
+            onClick={() => setShowFeedbackModal(true)}
+            className="px-2 py-1 rounded-md bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium text-xs hover:from-orange-600 hover:to-red-600 transition-all shadow-md flex items-center gap-1"
+            title="Report bugs, request games, or suggest improvements"
+          >
+            🐛
+          </button>
           <UserMenu />
         </div>
         
@@ -336,6 +345,13 @@ const Home: React.FC = () => {
           <CreateRoomModal
             onClose={() => setShowCreateModal(false)}
             onRoomCreated={handleRoomCreated}
+          />
+        )}
+        
+        {/* Feedback Modal */}
+        {showFeedbackModal && (
+          <FeedbackModal
+            onClose={() => setShowFeedbackModal(false)}
           />
         )}
       </div>
