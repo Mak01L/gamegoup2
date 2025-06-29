@@ -223,7 +223,7 @@ const LoginRegister: React.FC = () => {
       <div className="w-full max-w-4xl mb-6 z-20 flex justify-center">
         <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
           <GoogleAdSense 
-            adSlot="YOUR_TOP_AD_SLOT_ID"
+            adSlot="1234567890"
             style={{ display: 'block', minHeight: '90px', width: '100%' }}
           />
         </div>
@@ -358,7 +358,7 @@ const LoginRegister: React.FC = () => {
       <div className="w-full max-w-4xl mt-6 z-20 flex justify-center">
         <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
           <GoogleAdSense 
-            adSlot="YOUR_BOTTOM_AD_SLOT_ID"
+            adSlot="0987654321"
             style={{ display: 'block', minHeight: '90px', width: '100%' }}
           />
         </div>

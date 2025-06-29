@@ -11,7 +11,7 @@ interface GoogleAdSenseProps {
 const GoogleAdSense: React.FC<GoogleAdSenseProps> = ({
   adSlot,
   adFormat = 'auto',
-  adClient = 'ca-pub-YOUR_PUBLISHER_ID', // Replace with your actual publisher ID
+  adClient = 'ca-pub-7274762890410296',
   style = { display: 'block' },
   className = ''
 }) => {
