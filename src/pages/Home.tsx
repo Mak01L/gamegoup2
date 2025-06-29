@@ -67,18 +67,18 @@ const Home: React.FC = () => {
 
   // Manual room count updates via custom events (debounced)
   useEffect(() => {
-    let updateTimeout: NodeJS.Timeout;
+    let updateTimeout: number;
     
     const updateRoomCount = async (event: any) => {
       const roomId = event.detail.roomId;
       
       // Clear previous timeout to debounce rapid updates
       if (updateTimeout) {
-        clearTimeout(updateTimeout);
+        window.clearTimeout(updateTimeout);
       }
       
       // Debounce updates by 1 second
-      updateTimeout = setTimeout(async () => {
+      updateTimeout = window.setTimeout(async () => {
         console.log('Manual room count update for:', roomId);
         
         const { data: users } = await supabase.from('room_users').select('id').eq('room_id', roomId);
@@ -97,14 +97,14 @@ const Home: React.FC = () => {
     return () => {
       window.removeEventListener('roomUserChanged', updateRoomCount);
       if (updateTimeout) {
-        clearTimeout(updateTimeout);
+        window.clearTimeout(updateTimeout);
       }
     };
   }, []);
 
   // Global subscription to detect room changes (optimized)
   useEffect(() => {
-    let subscriptionTimeout: NodeJS.Timeout;
+    let subscriptionTimeout: number;
     
     const subscription = supabase
       .channel('rooms-global-optimized')
@@ -113,10 +113,10 @@ const Home: React.FC = () => {
         
         // Debounce room additions
         if (subscriptionTimeout) {
-          clearTimeout(subscriptionTimeout);
+          window.clearTimeout(subscriptionTimeout);
         }
         
-        subscriptionTimeout = setTimeout(async () => {
+        subscriptionTimeout = window.setTimeout(async () => {
           const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
           const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
           
@@ -136,7 +136,7 @@ const Home: React.FC = () => {
 
     return () => {
       if (subscriptionTimeout) {
-        clearTimeout(subscriptionTimeout);
+        window.clearTimeout(subscriptionTimeout);
       }
       supabase.removeChannel(subscription);
     };
