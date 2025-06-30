@@ -84,15 +84,7 @@ const LoginRegister: React.FC = () => {
       const password = (form.elements.namedItem('password') as HTMLInputElement).value;
       const remember = (form.elements.namedItem('remember') as HTMLInputElement)?.checked;
       
-      // Store rememberMe in localStorage for supabaseClient
-      if (remember) {
-        localStorage.setItem('rememberMe', 'true');
-      } else {
-        localStorage.removeItem('rememberMe');
-      }
-      
-      // Re-initialize supabase client with new storage
-      reinitSupabaseClient();
+      // Always persist sessions now
       await supabase.auth.signOut();
       
       const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });

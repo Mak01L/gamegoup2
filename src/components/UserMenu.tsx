@@ -4,6 +4,7 @@ import ProfileModal from '../modals/ProfileModal';
 import MessagingSystem from './MessagingSystem';
 import FindFriendsModal from './FindFriendsModal';
 import { supabase } from '../lib/supabaseClient';
+import { SessionManager } from '../lib/sessionManager';
 
 const UserMenu: React.FC = () => {
   const { authUser, profile } = useUser();
@@ -36,11 +37,22 @@ const UserMenu: React.FC = () => {
 
   const handleLogout = async () => {
     try {
+      console.log('🚪 Logging out...');
+      
+      // Sign out from Supabase
       await supabase.auth.signOut();
-      window.location.reload();
+      
+      // Clear stored session
+      SessionManager.clearStoredSession();
+      
+      // Force reload to clear any cached state
+      window.location.href = '/login';
     } catch (error) {
-      console.error('Error logging out:', error);
-      window.location.reload();
+      console.error('❌ Error logging out:', error);
+      
+      // Fallback: clear session and redirect anyway
+      SessionManager.clearStoredSession();
+      window.location.href = '/login';
     }
   };
 
