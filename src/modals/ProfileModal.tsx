@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import GlareHover from '../components/GlareHover';
-import PrivateMessageModal from './PrivateMessageModal';
+import PinnedPrivateMessageModal from './PinnedPrivateMessageModal';
 // You must create this JSON file with the structure { "Country": ["City1", "City2", ...], ... }
 // Example: { "Argentina": ["Buenos Aires", "Córdoba"], "Mexico": ["Mexico City", "Guadalajara"] }
 import countriesDataRaw from '../assets/countries_cities.json';
 
-// Ajuste de tipo para evitar error de indexación dinámica
+// Type adjustment to avoid dynamic indexing error
 type CountriesDataType = Record<string, string[]>;
 const countriesData: CountriesDataType = countriesDataRaw as CountriesDataType;
 
@@ -58,6 +58,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [sessionLost, setSessionLost] = useState(false);
+
+  // State for conversationId and otherUser for messaging modal
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeOtherUser, setActiveOtherUser] = useState<{ id: string; username: string; avatar_url?: string } | null>(null);
 
   // Reinforces: clear local states when closing the modal
   const handleClose = () => {
@@ -245,9 +250,27 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
     '/avatars/avatar9.png',
   ];
 
+  useEffect(() => {
+    if (authUser === null) {
+      setSessionLost(true);
+    }
+  }, [authUser]);
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-[#18122B]/90 backdrop-blur-md rounded-2xl p-8 w-full max-w-lg shadow-2xl text-white flex flex-col items-stretch font-inter relative border border-purple-400/30">
+        {/* Overlay de sesión perdida */}
+        {sessionLost && (
+          <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 rounded-2xl">
+            <div className="text-red-400 text-lg font-bold mb-4 text-center">Session lost or expired.<br />Please log in again.</div>
+            <button
+              className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow hover:from-purple-600 hover:to-blue-600 transition-all"
+              onClick={() => window.location.href = '/login'}
+            >
+              Go to Login
+            </button>
+          </div>
+        )}
         {/* Avatar and name */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative group">
@@ -329,8 +352,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
           </div>
           {/* Social Preferences */}
           <div>
-            <label className="block text-xs text-purple-300 mb-1">Gender (optional)</label>
-            <select className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={gender} onChange={e => setGender(e.target.value)} disabled={!isSelf || !editMode}>
+            <label className="block text-xs text-purple-300 mb-1" htmlFor="gender-select">Gender (optional)</label>
+            <select id="gender-select" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={gender} onChange={e => setGender(e.target.value)} disabled={!isSelf || !editMode} title="Gender">
               <option value="">Prefer not to say</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
@@ -340,8 +363,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
           </div>
           
           <div>
-            <label className="block text-xs text-purple-300 mb-1">Sexual orientation (optional)</label>
-            <select className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={sexualOrientation} onChange={e => setSexualOrientation(e.target.value)} disabled={!isSelf || !editMode}>
+            <label className="block text-xs text-purple-300 mb-1" htmlFor="sexual-orientation-select">Sexual orientation (optional)</label>
+            <select id="sexual-orientation-select" className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" value={sexualOrientation} onChange={e => setSexualOrientation(e.target.value)} disabled={!isSelf || !editMode} title="Sexual orientation">
               <option value="">Prefer not to say</option>
               <option value="heterosexual">Heterosexual</option>
               <option value="homosexual">Homosexual</option>
@@ -428,48 +451,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         {/* Action buttons for other users */}
         {!isSelf && userId && authUser && (
           <div className="flex gap-3 mt-6">
-            <button 
-              onClick={async () => {
-                console.log('🤝 ADD FRIEND CLICKED!');
-                
-                if (!authUser || !userId) {
-                  setError('Missing user data');
-                  return;
-                }
-                
-                try {
-                  const { error } = await supabase.from('friend_requests').insert({
-                    sender_id: authUser.id,
-                    receiver_id: userId,
-                    status: 'pending'
-                  });
-                  
-                  if (error) {
-                    console.error('Friend request error:', error);
-                    setError('Error: ' + error.message);
-                  } else {
-                    console.log('Friend request sent successfully!');
-                    setSuccess('✅ Friend request sent!');
-                  }
-                } catch (error) {
-                  console.error('Friend request exception:', error);
-                  setError('❌ Failed to send friend request');
-                }
-              }}
-              className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-purple-600 hover:to-blue-600 transition-all"
-            >
-              🤝 Add Friend
-            </button>
-            
+            {/* Solo dejar el botón de mensaje, eliminar Add Friend */}
             <button 
               onClick={async () => {
                 console.log('💬 MESSAGE CLICKED!');
-                
                 if (!authUser || !userId) {
                   setError('Missing user data');
                   return;
                 }
-                
                 try {
                   // Check if conversation exists
                   const { data: existing, error: findError } = await supabase
@@ -477,34 +466,43 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                     .select('id')
                     .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${userId}),and(user1_id.eq.${userId},user2_id.eq.${authUser.id})`)
                     .maybeSingle();
-                  
-                  if (findError) {
-                    console.error('Error finding conversation:', findError);
-                  }
-                  
+                  let conversationId = existing?.id;
                   if (!existing) {
                     console.log('Creating new conversation...');
                     // Create new conversation
-                    const { error } = await supabase
+                    const { data: newConv, error } = await supabase
                       .from('private_conversations')
                       .insert({
                         user1_id: authUser.id,
                         user2_id: userId,
                         last_message_at: new Date().toISOString()
-                      });
-                    
+                      })
+                      .select('id')
+                      .single();
                     if (error) {
                       console.error('Error creating conversation:', error);
                       setError('❌ Error: ' + error.message);
                       return;
                     }
+                    conversationId = newConv.id;
                     console.log('New conversation created!');
                   } else {
                     console.log('Existing conversation found:', existing);
                   }
-                  
                   setSuccess('✅ Opening private message...');
+                  // Optionally fetch avatar for other user
+                  let avatar_url = '';
+                  try {
+                    const { data: profile } = await supabase
+                      .from('profiles')
+                      .select('avatar_url')
+                      .eq('user_id', userId)
+                      .single();
+                    avatar_url = profile?.avatar_url || '';
+                  } catch {}
                   setTimeout(() => {
+                    setActiveConversationId(conversationId);
+                    setActiveOtherUser({ id: userId, username: username || 'User', avatar_url });
                     setShowMessageModal(true);
                   }, 500);
                 } catch (error) {
@@ -537,11 +535,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
       </div>
       
       {/* Private Message Modal */}
-      {showMessageModal && userId && (
-        <PrivateMessageModal
-          onClose={() => setShowMessageModal(false)}
-          otherUserId={userId}
-          otherUsername={username || 'User'}
+      {showMessageModal && activeConversationId && activeOtherUser && (
+        <PinnedPrivateMessageModal
+          onClose={() => {
+            setShowMessageModal(false);
+            setActiveConversationId(null);
+            setActiveOtherUser(null);
+          }}
+          conversationId={activeConversationId}
+          otherUser={activeOtherUser}
         />
       )}
     </div>

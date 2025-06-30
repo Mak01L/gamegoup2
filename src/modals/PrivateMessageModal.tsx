@@ -10,23 +10,32 @@ interface Message {
   sender_username?: string;
 }
 
+// New: Accept either conversationId+otherUser or legacy otherUserId+otherUsername
 interface PrivateMessageModalProps {
   onClose: () => void;
-  otherUserId: string;
-  otherUsername: string;
+  conversationId?: string;
+  otherUser?: { id: string; username: string; avatar_url?: string };
+  otherUserId?: string;
+  otherUsername?: string;
 }
 
 const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({ 
   onClose, 
-  otherUserId, 
-  otherUsername 
+  conversationId: propConversationId,
+  otherUser,
+  otherUserId: legacyOtherUserId,
+  otherUsername: legacyOtherUsername
 }) => {
   const { authUser } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(propConversationId || null);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Determine other user info
+  const otherUserId = otherUser?.id || legacyOtherUserId || '';
+  const otherUsername = otherUser?.username || legacyOtherUsername || 'User';
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,18 +45,50 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  // Subscribe to realtime messages
   useEffect(() => {
+    if (!conversationId) return;
+    const channel = supabase
+      .channel('private_messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'private_messages', filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) return prev;
+            const newMsg: Message = {
+              id: payload.new.id,
+              content: payload.new.content,
+              sender_id: payload.new.sender_id,
+              created_at: payload.new.created_at,
+              sender_username: payload.new.sender_id === authUser?.id ? 'You' : otherUsername
+            };
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, authUser, otherUsername]);
+
+  // If conversationId is not provided, find or create it
+  useEffect(() => {
+    if (propConversationId) {
+      setConversationId(propConversationId);
+      setLoading(false);
+      if (propConversationId) loadMessages(propConversationId);
+      return;
+    }
     if (!authUser || !otherUserId) return;
-    
     const initializeConversation = async () => {
       try {
-        // Find or create conversation
         let { data: conversation } = await supabase
           .from('private_conversations')
           .select('id')
           .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${otherUserId}),and(user1_id.eq.${otherUserId},user2_id.eq.${authUser.id})`)
           .maybeSingle();
-
         if (!conversation) {
           const { data: newConv } = await supabase
             .from('private_conversations')
@@ -58,10 +99,8 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
             })
             .select('id')
             .single();
-          
           conversation = newConv;
         }
-
         if (conversation) {
           setConversationId(conversation.id);
           await loadMessages(conversation.id);
@@ -72,10 +111,11 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
         setLoading(false);
       }
     };
-
     initializeConversation();
-  }, [authUser, otherUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, otherUserId, propConversationId]);
 
+  // Función para cargar mensajes desde la base de datos
   const loadMessages = async (convId: string) => {
     try {
       const { data } = await supabase
@@ -84,19 +124,17 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
           id,
           content,
           sender_id,
-          created_at,
-          profiles!sender_id(username)
+          created_at
         `)
         .eq('conversation_id', convId)
-        .order('created_at', { ascending: true })
-        .limit(50);
-
+        .order('created_at', { ascending: true });
       if (data) {
-        const formattedMessages = data.map(msg => ({
-          ...msg,
-          sender_username: (msg.profiles as any)?.username || 'Unknown'
-        }));
-        setMessages(formattedMessages);
+        setMessages(
+          data.map((msg: any) => ({
+            ...msg,
+            sender_username: msg.sender_id === authUser?.id ? 'You' : otherUsername
+          }))
+        );
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -105,37 +143,39 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !conversationId || !authUser) return;
-
     try {
-      const { data } = await supabase
+      await supabase
         .from('private_messages')
         .insert({
           conversation_id: conversationId,
           sender_id: authUser.id,
-          content: newMessage.trim()
-        })
+          content: newMessage.trim(),
+        });
+      setNewMessage('');
+      // Recarga el historial desde la base de datos después de enviar
+      const { data } = await supabase
+        .from('private_messages')
         .select(`
           id,
           content,
           sender_id,
           created_at
         `)
-        .single();
-
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
       if (data) {
-        const newMsg = {
-          ...data,
-          sender_username: 'You'
-        } as Message;
-        setMessages(prev => [...prev, newMsg]);
-        setNewMessage('');
-
-        // Update conversation timestamp
-        await supabase
-          .from('private_conversations')
-          .update({ last_message_at: new Date().toISOString() })
-          .eq('id', conversationId);
+        setMessages(
+          data.map((msg: any) => ({
+            ...msg,
+            sender_username: msg.sender_id === authUser?.id ? 'You' : otherUsername
+          }))
+        );
       }
+      // Actualiza timestamp de la conversación
+      await supabase
+        .from('private_conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversationId);
     } catch (error) {
       console.error('Error sending message:', error);
     }

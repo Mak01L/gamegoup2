@@ -149,8 +149,8 @@ const UserMenu: React.FC = () => {
       )}
       
       {showMessaging && (
-        <MessagingSystem 
-          onClose={() => setShowMessaging(false)} 
+        <MessagingSystem
+          onClose={() => { setShowMessaging(false); }}
         />
       )}
       

@@ -191,14 +191,16 @@ const AdminPanel: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <label htmlFor={`status-select-${item.id}`} className="sr-only">Status</label>
                       <select
+                        id={`status-select-${item.id}`}
+                        title="Status"
                         value={item.status}
                         onChange={(e) => updateStatus(item.id, e.target.value)}
                         className={`px-2 py-1 text-xs font-medium rounded border-0 ${getStatusColor(item.status)}`}
                       >
                         <option value="open">Open</option>
                         <option value="in_progress">In Progress</option>
-                        <option value="resolved">Resolved</option>
                         <option value="closed">Closed</option>
                       </select>
                     </td>

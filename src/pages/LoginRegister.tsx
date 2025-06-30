@@ -158,10 +158,10 @@ const LoginRegister: React.FC = () => {
       setLoading(false);
       return;
     }
-    // No crear perfil aquí. Solo mostrar mensaje de confirmación.
+    // Do not create profile here. Only show confirmation message.
     setLoading(false);
     setSuccess('Registration successful! Check your email (including spam) to activate your account. Once confirmed, log in to create your profile.');
-    // No redirigir automáticamente, dejar que el usuario confirme y luego haga login.
+    // Do not redirect automatically, let the user confirm and then log in.
   };
 
   // Forgot password handler
@@ -202,21 +202,21 @@ const LoginRegister: React.FC = () => {
     }
   };
 
-  // Eliminado useEffect de restauración de sesión, ahora lo maneja UserProvider
+  // Removed session restore useEffect, now handled by UserProvider
 
   // --- UI ---
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#18122B] via-[#6D28D9] to-[#A78BFA] font-inter p-4 text-[#F3E8FF] relative overflow-hidden">
       <SimpleBackgroundParticles />
       {/* Futuristic Glow Effects */}
-      <div className="absolute -top-10 -left-10 w-[400px] h-[400px] opacity-50 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #C084FC 0%, transparent 70%)'}} />
-      <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl" style={{background: 'radial-gradient(circle, #A78BFA 0%, transparent 70%)'}} />
+      <div className="absolute -top-10 -left-10 w-[400px] h-[400px] opacity-50 z-0 blur-3xl bg-[radial-gradient(circle,_#C084FC_0%,_transparent_70%)]" />
+      <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl bg-[radial-gradient(circle,_#A78BFA_0%,_transparent_70%)]" />
       {/* Top AdSense Banner */}
       <div className="w-full max-w-4xl mb-6 z-20 flex justify-center">
         <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
           <GoogleAdSense 
             adSlot="1234567890"
-            style={{ display: 'block', minHeight: '90px', width: '100%' }}
+            className="block min-h-[90px] w-full"
           />
         </div>
       </div>
@@ -230,18 +230,26 @@ const LoginRegister: React.FC = () => {
       </div>
       {/* Card */}
       <div className="w-full max-w-sm rounded-2xl p-6 flex flex-col items-stretch z-20 bg-[rgba(40,30,70,0.55)] shadow-2xl border border-[#7C5CFA]/25 backdrop-blur-lg">
-        <div className="flex w-full mb-6">
+        <div className="flex w-full mb-6" role="tablist" aria-label="Login or Register">
           <button
+            role="tab"
+            aria-selected={isLogin ? "true" : "false"}
+            tabIndex={isLogin ? 0 : -1}
             className={`flex-1 py-3 rounded-tl-xl rounded-bl-xl font-semibold text-base transition-all outline-none ${isLogin ? 'bg-gradient-to-r from-[#C084FC] to-[#A78BFA] text-[#18122B] shadow-[0_0_16px_0_#C084FC] drop-shadow-[0_0_8px_#F3E8FF]' : 'bg-transparent text-[#bdbdbd]'}`}
             onClick={() => setIsLogin(true)}
-            aria-selected={isLogin}
+            id="login-tab"
+            aria-controls="login-panel"
           >
             Login
           </button>
           <button
+            role="tab"
+            aria-selected={!isLogin ? "true" : "false"}
+            tabIndex={!isLogin ? 0 : -1}
             className={`flex-1 py-3 rounded-tr-xl rounded-br-xl font-semibold text-base transition-all outline-none ${!isLogin ? 'bg-gradient-to-r from-[#C084FC] to-[#A78BFA] text-[#18122B] shadow-[0_0_16px_0_#C084FC] drop-shadow-[0_0_8px_#F3E8FF]' : 'bg-transparent text-[#bdbdbd]'}`}
             onClick={() => setIsLogin(false)}
-            aria-selected={!isLogin}
+            id="register-tab"
+            aria-controls="register-panel"
           >
             Register
           </button>
@@ -249,10 +257,17 @@ const LoginRegister: React.FC = () => {
         {error && <div className="w-full mb-2 text-[#F87171] text-center font-semibold text-[15px]">{error}</div>}
         {success && <div className="w-full mb-2 text-[#C084FC] text-center font-semibold text-[15px]">{success}</div>}
         {isLogin ? (
-          <form className="w-full flex flex-col gap-4" onSubmit={handleLogin}>
+          <form
+            id="login-panel"
+            role="tabpanel"
+            aria-labelledby="login-tab"
+            hidden={!isLogin}
+            className="w-full flex flex-col gap-4"
+            onSubmit={handleLogin}
+          >
             <ShinyText text="Email" className="font-semibold text-[15px] mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'email' ? '#C084FC' : '#bdbdbd'}}>mail</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'email' ? 'text-purple-300' : 'text-gray-400'}`}>mail</span>
               <input name="email" type="email" placeholder="Email" autoComplete="username" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors" 
                 onFocus={() => setFocusField('email')}
@@ -261,7 +276,7 @@ const LoginRegister: React.FC = () => {
             </div>
             <ShinyText text="Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'password' ? '#C084FC' : '#bdbdbd'}}>lock</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'password' ? 'text-purple-300' : 'text-gray-400'}`}>lock</span>
               <input name="password" type="password" placeholder="Password" autoComplete="current-password" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors"
                 onFocus={() => setFocusField('password')}
@@ -270,8 +285,8 @@ const LoginRegister: React.FC = () => {
             </div>
             <div className="flex items-center justify-between text-sm mt-2">
               <label className="flex items-center gap-1.5">
-                <input name="remember" type="checkbox" className="accent-[#C084FC] mr-1" />
-                <ShinyText text="Remember me" className="" />
+                <input name="remember" type="checkbox" className="accent-[#C084FC] mr-1" id="remember" title="Remember me" />
+                <label htmlFor="remember" className="text-xs text-gray-300 select-none cursor-pointer">Remember me</label>
               </label>
               <button type="button" className="text-[#C084FC] bg-none border-none cursor-pointer underline font-medium text-sm" onClick={() => setShowForgot(true)}>Forgot password?</button>
             </div>
@@ -291,10 +306,17 @@ const LoginRegister: React.FC = () => {
             </div>
           </form>
         ) : (
-          <form className="w-full flex flex-col gap-4" onSubmit={handleRegister}>
+          <form
+            id="register-panel"
+            role="tabpanel"
+            aria-labelledby="register-tab"
+            hidden={isLogin}
+            className="w-full flex flex-col gap-4"
+            onSubmit={handleRegister}
+          >
             <ShinyText text="Username" className="font-semibold text-[15px] mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'username' ? '#C084FC' : '#bdbdbd'}}>person</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'username' ? 'text-purple-300' : 'text-gray-400'}`}>person</span>
               <input name="username" type="text" placeholder="Username" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors"
                 onFocus={() => setFocusField('username')}
@@ -303,7 +325,7 @@ const LoginRegister: React.FC = () => {
             </div>
             <ShinyText text="Email" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'email' ? '#C084FC' : '#bdbdbd'}}>mail</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'email' ? 'text-purple-300' : 'text-gray-400'}`}>mail</span>
               <input name="email" type="email" placeholder="Email" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors"
                 onFocus={() => setFocusField('email')}
@@ -312,7 +334,7 @@ const LoginRegister: React.FC = () => {
             </div>
             <ShinyText text="Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'password' ? '#C084FC' : '#bdbdbd'}}>lock</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'password' ? 'text-purple-300' : 'text-gray-400'}`}>lock</span>
               <input name="password" type="password" placeholder="Password" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors"
                 onFocus={() => setFocusField('password')}
@@ -321,7 +343,7 @@ const LoginRegister: React.FC = () => {
             </div>
             <ShinyText text="Confirm Password" className="font-semibold text-[15px] mt-2 mb-0.5 ml-0.5" />
             <div className="relative mb-0">
-              <span className="material-icons absolute left-3 top-3 text-[20px] transition-colors" style={{color: focusField === 'confirm' ? '#C084FC' : '#bdbdbd'}}>lock</span>
+              <span className={`material-icons absolute left-3 top-3 text-[20px] transition-colors ${focusField === 'confirm' ? 'text-purple-300' : 'text-gray-400'}`}>lock</span>
               <input name="confirm" type="password" placeholder="Confirm Password" required
                 className="w-full max-w-xs mx-auto pl-10 pr-4 py-3 rounded-lg bg-[rgba(34,27,58,0.95)] text-white border border-[#3C2A6D] focus:border-[#C084FC] outline-none transition-colors"
                 onFocus={() => setFocusField('confirm')}
