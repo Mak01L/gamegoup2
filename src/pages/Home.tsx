@@ -12,6 +12,20 @@ import { cleanEmptyRooms } from '../lib/roomOptions';
 import { useUser } from '../context/UserContext';
 import FeedbackModal from '../modals/FeedbackModal';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
+import Button from '../components/Button';
+import { useToast } from '../components/Toast';
+import { SkeletonRoomCard } from '../components/SkeletonLoader';
+import Confetti from '../components/Confetti';
+import { useSoundEffects } from '../hooks/useSoundEffects';
+import Tooltip from '../components/Tooltip';
+import SearchBar from '../components/SearchBar';
+import AchievementBadge from '../components/AchievementBadge';
+import ParallaxBackground from '../components/ParallaxBackground';
+import { MessageCircleIcon, UsersIcon, GamepadIcon, CheckIcon } from '../components/Icons';
+import Badge from '../components/Badge';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import FloatingActionButton from '../components/FloatingActionButton';
+import MobileNavigation from '../components/MobileNavigation';
 
 interface Room {
   id: string;
@@ -42,9 +56,16 @@ const Home: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [joiningRoom, setJoiningRoom] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const { rooms: pinnedRooms, addRoom } = usePinnedRoomsStore();
   const { authUser } = useUser();
+  const { success, error: showError, ToastContainer } = useToast();
+  const { playSound } = useSoundEffects({ enabled: true, volume: 0.2 });
+  const isMobile = useIsMobile();
 
   // Auto-refresh on mount to show current user counts
   useEffect(() => {
@@ -255,10 +276,14 @@ const Home: React.FC = () => {
       }));
       
       console.log('Successfully joined room:', room.id);
+      success('Room Joined!', `You've successfully joined "${room.name}"`);
+      playSound('join');
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
       
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Failed to join room. Please try again.');
+      showError('Join Failed', 'Failed to join room. Please try again.');
     } finally {
       setJoiningRoom(null);
     }
@@ -269,27 +294,76 @@ const Home: React.FC = () => {
     setShowCreateModal(true);
   };
 
+  // Search functionality
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchSuggestions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Generate smart suggestions based on existing rooms
+      const suggestions = [
+        { id: 'game-' + query, text: `${query} games`, category: 'Games', icon: '🎮' },
+        { id: 'region-' + query, text: `${query} region`, category: 'Regions', icon: '🌍' },
+        { id: 'lang-' + query, text: `${query} language`, category: 'Languages', icon: '💬' },
+        { id: 'search-' + query, text: query, category: 'Search', icon: '🔍' }
+      ];
+      setSearchSuggestions(suggestions);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSuggestionSelect = (suggestion: any) => {
+    setSearchQuery(suggestion.text);
+    // Apply search filter
+    const newFilters = { ...filters };
+    if (suggestion.category === 'Games') {
+      newFilters.game = suggestion.text.replace(' games', '');
+    } else if (suggestion.category === 'Regions') {
+      newFilters.region = suggestion.text.replace(' region', '');
+    } else if (suggestion.category === 'Languages') {
+      newFilters.language = suggestion.text.replace(' language', '');
+    }
+    setFilters(newFilters);
+    handleApply();
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#18122B] to-[#6D28D9] via-[#A78BFA] font-inter text-white flex flex-row relative">
-      <BackgroundParticles />
+    <div className="min-h-screen font-inter text-white flex flex-row relative overflow-hidden">
+      <ParallaxBackground speed={0.3}>
+        <BackgroundParticles />
+      </ParallaxBackground>
       
-      {/* Sidebar for pinned rooms */}
-      <div className="min-w-[90px] max-w-[220px] w-[18vw] bg-[#281e46]/[0.55] border-r border-purple-400/30 flex flex-col z-20">
-        <PinnedRoomsSidebar />
-        <AdBanner position="sidebar" />
-      </div>
+      {/* Professional sidebar - Hidden on mobile */}
+      {!isMobile && (
+        <div className="min-w-[90px] max-w-[220px] w-[18vw] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
+          <PinnedRoomsSidebar />
+          <AdBanner position="sidebar" />
+        </div>
+      )}
       
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center py-8 relative">
-        {/* User menu and feedback button top right */}
-        <div className="absolute top-6 right-8 z-10 flex items-center gap-4">
-          <button
-            onClick={() => setShowFeedbackModal(true)}
-            className="px-2 py-1 rounded-md bg-gradient-to-r from-orange-500 to-red-500 text-white font-medium text-xs hover:from-orange-600 hover:to-red-600 transition-all shadow-md flex items-center gap-1"
-            title="Report bugs, request games, or suggest improvements"
-          >
-            🐛
-          </button>
+        {/* User menu and controls top right */}
+        <div className="absolute top-6 right-8 z-10 flex items-center gap-4 animate-slide-in-right">
+          <Tooltip content="Report bugs, request games, or suggest improvements" position="bottom">
+            <Button
+              onClick={() => setShowFeedbackModal(true)}
+              variant="ghost"
+              size="sm"
+              icon={<MessageCircleIcon size={16} />}
+              iconPosition="left"
+              className="bg-transparent hover:bg-white/5 border-white/20 text-white/80 hover:text-white backdrop-blur-sm"
+            >
+              Feedback
+            </Button>
+          </Tooltip>
           <UserMenu />
         </div>
         
@@ -303,39 +377,88 @@ const Home: React.FC = () => {
           <ProfileCompletionBanner />
         </div>
         
-        {/* Filters and buttons */}
-        <div className="w-full max-w-[540px] mx-auto bg-[#281e46]/[0.55] rounded-2xl shadow-lg p-7 mb-4 relative">
+        {/* Search section */}
+        <div className="w-full max-w-[600px] mx-auto mb-6">
+          <SearchBar
+            placeholder="Search rooms, games, regions..."
+            suggestions={searchSuggestions}
+            onSearch={handleSearch}
+            onSuggestionSelect={handleSuggestionSelect}
+            loading={isSearching}
+            className="animate-fade-in-up"
+          />
+        </div>
+
+        {/* Professional filters section */}
+        <div className="w-full max-w-[540px] mx-auto glass-surface rounded-2xl shadow-professional p-7 mb-4 relative border border-primary-500/20">
           <AdBanner position="top" />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
           <div className="flex justify-end mt-4">
-            <button
-              className="px-7 py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-purple-400 to-blue-400 text-white border-none cursor-pointer shadow-md focus:outline-none hover:from-purple-500 hover:to-blue-500 transition-all"
+            <Button
               onClick={handleCreateRoom}
-              type="button"
+              variant="primary"
+              size="lg"
+              animate={true}
+              className="text-lg font-bold"
             >
               Create New Room
-            </button>
+            </Button>
           </div>
         </div>
         
         {/* Room search results */}
         <div className="w-full max-w-[900px] mx-auto">
-          {loading && <div className="text-center">Loading rooms...</div>}
-          {error && <div className="text-red-400 mb-4 text-center">{error}</div>}
-          {rooms.length === 0 && !loading && (
-            <div className="text-gray-400 text-center">No rooms found.</div>
+          {loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonRoomCard key={i} className={`stagger-${(i % 5) + 1}`} />
+              ))}
+            </div>
           )}
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rooms.map((room: Room) => (
+          {error && (
+            <div className="text-center p-8">
+              <div className="w-16 h-16 mx-auto mb-4 text-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <div className="text-error mb-2 text-lg font-semibold">Oops! Something went wrong</div>
+              <div className="text-secondary-400 text-sm">{error}</div>
+            </div>
+          )}
+          
+          {rooms.length === 0 && !loading && !error && (
+            <div className="text-center p-12">
+              <div className="w-20 h-20 mx-auto mb-6 text-secondary-400 animate-bounce">
+                <GamepadIcon size={80} />
+              </div>
+              <div className="text-secondary-300 text-xl mb-2">No rooms found</div>
+              <div className="text-secondary-400 text-sm">Try adjusting your filters or create a new room!</div>
+            </div>
+          )}
+          
+          {!loading && rooms.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rooms.map((room: Room, index) => (
               <div
                 key={room.id}
-                className="bg-[#281e46]/[0.55] rounded-xl p-4 shadow-lg border border-purple-400/30 flex flex-col gap-2 relative min-h-[160px]"
+                className={`
+                  glass-surface rounded-xl p-6 shadow-professional border border-primary-500/20 
+                  flex flex-col gap-3 relative min-h-[180px]
+                  hover:glass-surface-light hover:shadow-elevated hover:border-primary-400/40
+                  animate-fade-in-up transition-all var(--transition-normal)
+                  stagger-${Math.min(index % 6 + 1, 5)}
+                  group cursor-pointer
+                  hover:transform hover:scale-[1.02]
+                `}
               >
-                <div className="font-bold text-lg text-purple-300 truncate">{room.name}</div>
-                <div className="text-purple-100 text-sm">{room.game}</div>
-                <div className="text-purple-100 text-xs">{room.region} | {room.language} {room.country ? `| ${room.country}` : ''}</div>
-                {room.description && <div className="text-gray-400 text-xs line-clamp-2">{room.description}</div>}
+                <div className="font-bold text-lg text-primary-300 truncate">{room.name}</div>
+                <div className="text-secondary-100 text-sm font-medium">{room.game}</div>
+                <div className="text-secondary-300 text-xs">{room.region} | {room.language} {room.country ? `| ${room.country}` : ''}</div>
+                {room.description && <div className="text-secondary-400 text-xs line-clamp-2">{room.description}</div>}
                 
                 {/* User previews */}
                 {room.user_previews && room.user_previews.length > 0 && (
@@ -359,36 +482,46 @@ const Home: React.FC = () => {
                 )}
                 
                 <div className="flex justify-between items-center mt-auto">
-                  <div className="text-gray-400 text-xs">
+                  <div className="text-secondary-400 text-xs">
                     Created: {new Date(room.created_at).toLocaleDateString()}
                   </div>
-                  <div className="text-purple-300 text-xs font-semibold">
-                    👥 {room.user_count || 0} users
+                  <div className="text-primary-300 text-xs font-semibold flex items-center gap-1">
+                    <UsersIcon size={12} />
+                    {room.user_count || 0} users
                   </div>
                 </div>
                 
                 {/* Join/Joined button */}
                 {!pinnedRooms.some((r: any) => r.id === room.id) ? (
-                  <button
-                    className="absolute top-3 right-3 px-3 py-1 rounded-md font-semibold text-xs bg-gradient-to-r from-purple-400 to-blue-400 text-white border-none shadow-md focus:outline-none hover:from-purple-500 hover:to-blue-500 cursor-pointer disabled:opacity-50 transition-all"
-                    onClick={() => handleJoinRoom(room)}
-                    disabled={joiningRoom === room.id}
-                    type="button"
-                  >
-                    {joiningRoom === room.id ? 'Joining...' : 'Join'}
-                  </button>
+                  <Tooltip content={`Join "${room.name}" room`} position="left">
+                    <Button
+                      onClick={() => handleJoinRoom(room)}
+                      disabled={joiningRoom === room.id}
+                      loading={joiningRoom === room.id}
+                      variant="primary"
+                      size="sm"
+                      className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    >
+                      {joiningRoom === room.id ? 'Joining...' : 'Join'}
+                    </Button>
+                  </Tooltip>
                 ) : (
-                  <button
-                    className="absolute top-3 right-3 px-3 py-1 rounded-md font-semibold text-xs bg-[#2D2350] text-white cursor-not-allowed border-none shadow-md focus:outline-none"
-                    disabled={true}
-                    type="button"
-                  >
-                    Joined
-                  </button>
+                  <Tooltip content="You're already in this room" position="left">
+                    <div className="absolute top-4 right-4">
+                      <Badge 
+                        variant="success" 
+                        size="sm"
+                        icon={<CheckIcon size={12} />}
+                      >
+                        Joined
+                      </Badge>
+                    </div>
+                  </Tooltip>
                 )}
               </div>
             ))}
-          </div>
+            </div>
+          )}
         </div>
         
         {/* Modal para crear sala */}
@@ -408,6 +541,25 @@ const Home: React.FC = () => {
       </div>
       
       <Footer />
+      
+      {/* Mobile FAB */}
+      {isMobile && (
+        <FloatingActionButton
+          onClick={handleCreateRoom}
+          className="animate-scale-in"
+        />
+      )}
+
+      {/* Mobile Navigation */}
+      {isMobile && (
+        <MobileNavigation onCreateRoom={handleCreateRoom} />
+      )}
+
+      {/* Toast notifications */}
+      <ToastContainer />
+      
+      {/* Confetti celebration */}
+      <Confetti active={showConfetti} />
     </div>
   );
 };
