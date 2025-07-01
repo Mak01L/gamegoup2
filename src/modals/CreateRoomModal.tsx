@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
-import { games, regions, languages, countries, maxPlayersOptions } from '../lib/roomOptions';
+import { games, regions, languages, countries, maxPlayersOptions, systems } from '../lib/roomOptions';
 
 interface CreateRoomModalProps {
   onClose: () => void;
@@ -18,14 +18,15 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ onClose, onRoomCreate
   const [language, setLanguage] = useState('');
   const [country, setCountry] = useState('');
   const [maxPlayers, setMaxPlayers] = useState<number | ''>('');
+  const [system, setSystem] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!name.trim() || !game.trim() || !region.trim() || !maxPlayers) {
-      setError('Room name, game, region, and max players are required.');
+    if (!name.trim() || !game.trim() || !region.trim() || !maxPlayers || !system.trim()) {
+      setError('Room name, game, region, system, and max players are required.');
       return;
     }
     const { data: userData } = await supabase.auth.getUser();
@@ -47,7 +48,8 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ onClose, onRoomCreate
       language,
       country,
       max_players: maxPlayers,
-      owner_id: realUserId
+      owner_id: realUserId,
+      system // Add system to room creation
     }).select().single();
     if (errRoom || !room) {
       setError('Supabase: ' + (errRoom?.message || 'Unknown error'));
@@ -123,6 +125,16 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ onClose, onRoomCreate
           >
             <option value="">Select game</option>
             {games.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+          <select
+            value={system}
+            onChange={e => setSystem(e.target.value)}
+            className="px-3 py-2 rounded-lg border-2 border-blue-500 bg-[#1e2a46]/[0.85] text-white text-base"
+            required
+            aria-label="System"
+          >
+            <option value="">Select system</option>
+            {systems.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <select
             value={region}

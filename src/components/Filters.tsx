@@ -1,5 +1,5 @@
 import React from 'react';
-import { games, regions, languages, countries } from '../lib/roomOptions';
+import { games, regions, languages, countries, systems } from '../lib/roomOptions';
 
 interface FiltersProps {
   values: {
@@ -8,6 +8,7 @@ interface FiltersProps {
     region: string;
     language: string;
     country: string;
+    system: string; // Added system field
   };
   onChange: (values: any) => void;
   onApply: () => void;
@@ -33,6 +34,15 @@ const Filters: React.FC<FiltersProps> = ({ values, onChange, onApply, onClear })
       >
         <option value="">Game</option>
         {games.map(g => <option key={g} value={g}>{g}</option>)}
+      </select>
+      <select
+        value={values.system}
+        onChange={e => onChange({ ...values, system: e.target.value })}
+        className="min-w-[120px] flex-1 px-3 py-2 rounded-lg border border-blue-400 bg-[#1e2a46]/[0.85] text-white text-base"
+        aria-label="System"
+      >
+        <option value="">System</option>
+        {systems.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
       <select
         value={values.region}

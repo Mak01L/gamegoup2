@@ -364,6 +364,29 @@ const Home: React.FC = () => {
               Feedback
             </Button>
           </Tooltip>
+          {/* Social media links */}
+          <a
+            href="https://x.com/GameGoUp"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GameGoUp on Twitter"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+              <path d="M22.162 5.656c-.793.352-1.646.59-2.54.698a4.48 4.48 0 0 0 1.963-2.475 8.93 8.93 0 0 1-2.828 1.08A4.466 4.466 0 0 0 11.07 9.03c0 .35.04.69.115 1.016-3.71-.186-7-1.963-9.197-4.664a4.48 4.48 0 0 0-.604 2.247c0 1.55.79 2.92 2 3.724a4.44 4.44 0 0 1-2.022-.56v.057a4.47 4.47 0 0 0 3.58 4.38c-.19.052-.39.08-.6.08-.146 0-.286-.014-.424-.04.287.89 1.12 1.54 2.11 1.56A8.97 8.97 0 0 1 2 19.54a12.67 12.67 0 0 0 6.88 2.02c8.26 0 12.78-6.84 12.78-12.77 0-.19-.01-.38-.02-.57a9.1 9.1 0 0 0 2.22-2.34z" />
+            </svg>
+          </a>
+          <a
+            href="https://www.facebook.com/profile.php?id=61578022196836"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GameGoUp on Facebook"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+              <path d="M22.675 0h-21.35C.595 0 0 .592 0 1.326v21.348C0 23.408.595 24 1.325 24h11.495v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.406 24 24 23.408 24 22.674V1.326C24 .592 23.406 0 22.675 0" />
+            </svg>
+          </a>
           <UserMenu />
         </div>
         

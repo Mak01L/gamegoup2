@@ -451,7 +451,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         {/* Action buttons for other users */}
         {!isSelf && userId && authUser && (
           <div className="flex gap-3 mt-6">
-            {/* Solo dejar el botón de mensaje, eliminar Add Friend */}
+            {/* Message Button */}
             <button 
               onClick={async () => {
                 console.log('💬 MESSAGE CLICKED!');
@@ -486,6 +486,28 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                     }
                     conversationId = newConv.id;
                     console.log('New conversation created!');
+
+                    // --- Insert notification for recipient (userId) ---
+                    try {
+                      const notification = {
+                        recipient_id: userId,
+                        type: 'message',
+                        data: JSON.stringify({ from: authUser.id, conversationId }),
+                        created_at: new Date().toISOString(),
+                        read: false
+                      };
+                      const { error: notifError } = await supabase
+                        .from('notification_queue')
+                        .insert(notification);
+                      if (notifError) {
+                        console.error('Failed to insert notification:', notifError);
+                      } else {
+                        console.log('Notification inserted for recipient:', userId);
+                      }
+                    } catch (notifEx) {
+                      console.error('Exception inserting notification:', notifEx);
+                    }
+                    // --- End notification insert ---
                   } else {
                     console.log('Existing conversation found:', existing);
                   }
@@ -510,9 +532,95 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                   setError('❌ Failed to start conversation');
                 }
               }}
-              className="flex-1 bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:from-green-600 hover:to-teal-600 transition-all"
+              className="flex-1 bg-none border border-purple-400 text-purple-300 px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-purple-800/40 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               💬 Message
+            </button>
+            {/* Friend Request Button */}
+            <button
+              onClick={async () => {
+                setError("");
+                setSuccess("");
+                if (!authUser || !userId) {
+                  setError("Missing user data");
+                  return;
+                }
+                try {
+                  // Check if friend request already exists
+                  const { data: existing, error: findError } = await supabase
+                    .from('friend_requests')
+                    .select('id')
+                    .eq('from_user_id', authUser.id)
+                    .eq('to_user_id', userId)
+                    .maybeSingle();
+                  if (existing) {
+                    setError('Friend request already sent.');
+                    return;
+                  }
+                  // Insert friend request
+                  const { error: reqError } = await supabase
+                    .from('friend_requests')
+                    .insert({ from_user_id: authUser.id, to_user_id: userId, status: 'pending', created_at: new Date().toISOString() });
+                  if (reqError) {
+                    setError('Failed to send friend request: ' + reqError.message);
+                    return;
+                  }
+                  // Insert notification for recipient
+                  const notification = {
+                    recipient_id: userId,
+                    type: 'friend_request',
+                    data: JSON.stringify({ from: authUser.id }),
+                    created_at: new Date().toISOString(),
+                    read: false
+                  };
+                  const { error: notifError } = await supabase
+                    .from('notification_queue')
+                    .insert(notification);
+                  if (notifError) {
+                    console.error('Failed to insert friend request notification:', notifError);
+                  }
+                  setSuccess('✅ Friend request sent!');
+                } catch (error) {
+                  setError('❌ Failed to send friend request');
+                }
+              }}
+              className="flex-1 bg-none border border-purple-400 text-purple-300 px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-purple-800/40 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              🤝 Add Friend
+            </button>
+            {/* Match Notification Button (for demo/testing, replace with real match logic) */}
+            <button
+              onClick={async () => {
+                setError("");
+                setSuccess("");
+                if (!authUser || !userId) {
+                  setError("Missing user data");
+                  return;
+                }
+                try {
+                  // Insert notification for match (replace with real match detection logic)
+                  const notification = {
+                    recipient_id: userId,
+                    type: 'match',
+                    data: JSON.stringify({ with: authUser.id }),
+                    created_at: new Date().toISOString(),
+                    read: false
+                  };
+                  const { error: notifError } = await supabase
+                    .from('notification_queue')
+                    .insert(notification);
+                  if (notifError) {
+                    setError('Failed to send match notification: ' + notifError.message);
+                  } else {
+                    setSuccess('🎉 Match notification sent!');
+                  }
+                } catch (error) {
+                  setError('❌ Failed to send match notification');
+                }
+              }}
+              className="flex-1 bg-none border border-purple-400 text-purple-300 px-4 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-purple-800/40 transition-all focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              🔥 Match
             </button>
           </div>
         )}
