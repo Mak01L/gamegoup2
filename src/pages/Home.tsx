@@ -46,6 +46,7 @@ const initialFilters = {
   region: '',
   language: '',
   country: '',
+  system: '', // <-- Añadido para cumplir con el tipo requerido
 };
 
 const Home: React.FC = () => {
