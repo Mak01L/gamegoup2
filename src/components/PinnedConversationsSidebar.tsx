@@ -24,13 +24,13 @@ const PinnedConversationsSidebar: React.FC<PinnedConversationsSidebarProps> = ({
     if (!authUser) return;
     const fetchConversations = async () => {
       setLoading(true);
-      // Buscar conversaciones donde el usuario es user1 o user2 y que sean amigos o match
+      // Search for conversations where the user is user1 or user2 and they are friends or match
       const { data, error } = await supabase
         .from('private_conversations')
         .select('id, user1_id, user2_id, user1:profiles!private_conversations_user1_id_fkey(id,username,avatar_url), user2:profiles!private_conversations_user2_id_fkey(id,username,avatar_url)')
         .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`);
       if (!error && data) {
-        // Filtrar para mostrar solo amigos o matches (puedes ajustar la lógica según tu modelo)
+        // Filter to show only friends or matches (you can adjust the logic according to your model)
         const filtered = data.map((conv: any) => {
           const other = conv.user1_id === authUser.id ? conv.user2 : conv.user1;
           return {

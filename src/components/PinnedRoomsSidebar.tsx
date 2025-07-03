@@ -10,7 +10,7 @@ const PinnedRoomsSidebar: React.FC = () => {
   const { authUser } = useUser();
   const [openRoomId, setOpenRoomId] = useState<string | null>(null);
   const openRoom = rooms.find(r => r.id === openRoomId);
-  // Obtener info extendida de la sala si está pineada
+  // Get extended room info if it's pinned
   const extendedRoom = openRoomId && rooms.find(r => r.id === openRoomId);
 
   return (

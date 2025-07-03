@@ -408,7 +408,7 @@ const LoginRegister: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Profile creation modal (forzado tras login si no hay perfil) */}
+      {/* Profile creation modal (forced after login if no profile) */}
       {forceProfileUserId && (
         <ProfileModal
           userId={forceProfileUserId}

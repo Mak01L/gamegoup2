@@ -115,7 +115,7 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, otherUserId, propConversationId]);
 
-  // Función para cargar mensajes desde la base de datos
+  // Function to load messages from the database
   const loadMessages = async (convId: string) => {
     try {
       const { data } = await supabase
@@ -152,7 +152,7 @@ const PrivateMessageModal: React.FC<PrivateMessageModalProps> = ({
           content: newMessage.trim(),
         });
       setNewMessage('');
-      // Recarga el historial desde la base de datos después de enviar
+      // Reload history from database after sending
       const { data } = await supabase
         .from('private_messages')
         .select(`

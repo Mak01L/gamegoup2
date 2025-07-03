@@ -94,115 +94,251 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setLoading(true);
     
     try {
+      console.log('🔍 Starting search for users...');
+      
+      // First check how many profiles exist in total
+      const { count: totalProfiles } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .neq('user_id', authUser.id);
+      
+      console.log('📊 Total profiles in database (excluding self):', totalProfiles);
+      
+      // First, get users that have already been rated by the current user
+      const { data: ratedUsers, error: ratedError } = await supabase
+        .from('likes_dislikes')
+        .select('target_user_id')
+        .eq('user_id', authUser.id);
+
+      if (ratedError) {
+        console.error('❌ Error fetching rated users:', ratedError);
+        // Continue even if there's an error - maybe the table doesn't exist yet
+      }
+
+      const ratedUserIds = ratedUsers?.map(r => r.target_user_id) || [];
+      console.log('👍 Already rated user IDs:', ratedUserIds);
+
+      // Also get existing friends to exclude them
+      const { data: existingFriends, error: friendsError } = await supabase
+        .from('friendships')
+        .select('user1_id, user2_id')
+        .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`);
+
+      if (friendsError) {
+        console.error('❌ Error fetching friends:', friendsError);
+      }
+
+      const friendIds = existingFriends?.map(f => 
+        f.user1_id === authUser.id ? f.user2_id : f.user1_id
+      ) || [];
+
+      console.log('🤝 Existing friend IDs:', friendIds);
+
+      // Combine both arrays to exclude
+      const excludeUserIds = [...ratedUserIds, ...friendIds];
+      console.log('🚫 Users to exclude:', excludeUserIds);
+
       let query = supabase
         .from('profiles')
         .select('*')
         .neq('user_id', authUser.id)
         .limit(50);
 
+      // Exclude already rated users and friends
+      if (excludeUserIds.length > 0) {
+        query = query.not('user_id', 'in', `(${excludeUserIds.join(',')})`);
+        console.log('🔍 Applied exclusion filter for', excludeUserIds.length, 'users');
+      }
+
       if (filters.username.trim()) {
         query = query.ilike('username', `%${filters.username.trim()}%`);
+        console.log('🔍 Filtering by username:', filters.username.trim());
       }
 
       if (filters.genders.length > 0) {
         query = query.in('gender', filters.genders);
+        console.log('🔍 Filtering by genders:', filters.genders);
       }
 
       if (filters.sexualOrientations.length > 0) {
         query = query.in('sexual_orientation', filters.sexualOrientations);
+        console.log('🔍 Filtering by sexual orientations:', filters.sexualOrientations);
       }
 
       if (filters.countries.length > 0) {
         query = query.in('country', filters.countries);
+        console.log('🔍 Filtering by countries:', filters.countries);
       }
 
       const { data, error } = await query;
       
-      if (!error && data) {
-        // Filter by games and interests on client side since they're stored as comma-separated strings
-        let filteredData = data;
-        
-        if (filters.games.length > 0) {
-          filteredData = filteredData.filter(user => {
-            if (!user.game_tags) return false;
-            const userGames = user.game_tags.split(',').map(g => g.trim().toLowerCase());
-            return filters.games.some(game => 
-              userGames.some(userGame => userGame.includes(game.toLowerCase()))
-            );
-          });
-        }
-
-        if (filters.interests.length > 0) {
-          filteredData = filteredData.filter(user => {
-            if (!user.interests) return false;
-            const userInterests = user.interests.split(',').map(i => i.trim().toLowerCase());
-            return filters.interests.some(interest => 
-              userInterests.some(userInterest => userInterest.includes(interest.toLowerCase()))
-            );
-          });
-        }
-
-        if (filters.connectionTypes.length > 0) {
-          filteredData = filteredData.filter(user => {
-            if (!user.connection_types) return false;
-            const userConnectionTypes = user.connection_types.split(',').map(c => c.trim().toLowerCase());
-            return filters.connectionTypes.some(type => 
-              userConnectionTypes.some(userType => userType.includes(type.toLowerCase()))
-            );
-          });
-        }
-
-        setSearchResults(filteredData);
+      console.log('📊 Query result:', { data: data?.length, error });
+      
+      if (error) {
+        console.error('❌ Query error:', error);
+        setSearchResults([]);
+        setLoading(false);
+        return;
       }
+      
+      if (!data) {
+        console.log('❌ No data returned');
+        setSearchResults([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log(`✅ Found ${data.length} users before client-side filtering`);
+      
+      // Filter by games and interests on client side since they're stored as comma-separated strings
+      let filteredData = data;
+      
+      if (filters.games.length > 0) {
+        filteredData = filteredData.filter(user => {
+          if (!user.game_tags) return false;
+          const userGames = user.game_tags.split(',').map(g => g.trim().toLowerCase());
+          return filters.games.some(game => 
+            userGames.some(userGame => userGame.includes(game.toLowerCase()))
+          );
+        });
+        console.log(`🎮 After games filter: ${filteredData.length} users`);
+      }
+
+      if (filters.interests.length > 0) {
+        filteredData = filteredData.filter(user => {
+          if (!user.interests) return false;
+          const userInterests = user.interests.split(',').map(i => i.trim().toLowerCase());
+          return filters.interests.some(interest => 
+            userInterests.some(userInterest => userInterest.includes(interest.toLowerCase()))
+          );
+        });
+        console.log(`💝 After interests filter: ${filteredData.length} users`);
+      }
+
+      if (filters.connectionTypes.length > 0) {
+        filteredData = filteredData.filter(user => {
+          if (!user.connection_types) return false;
+          const userConnectionTypes = user.connection_types.split(',').map(c => c.trim().toLowerCase());
+          return filters.connectionTypes.some(type => 
+            userConnectionTypes.some(userType => userType.includes(type.toLowerCase()))
+          );
+        });
+        console.log(`🔗 After connection types filter: ${filteredData.length} users`);
+      }
+
+      console.log(`✨ Final result: ${filteredData.length} users to show`);
+      setSearchResults(filteredData);
+      
     } catch (error) {
-      console.error('Error searching users:', error);
+      console.error('💥 Exception in searchUsers:', error);
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendFriendRequest = async (userId: string) => {
+  const handleLikeDislike = async (userId: string, action: 'like' | 'dislike') => {
     if (!authUser) return;
 
     try {
-      // Check if request already exists
-      const { data: existingRequest } = await supabase
-        .from('friend_requests')
-        .select('id')
-        .or(`and(sender_id.eq.${authUser.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${authUser.id})`)
-        .eq('status', 'pending')
-        .single();
+      console.log(`${action === 'like' ? '💖' : '👎'} ${action}ing user:`, userId);
 
-      if (existingRequest) {
-        alert('Friend request already sent or received');
+      // Insert the like/dislike action
+      const { error: insertError } = await supabase
+        .from('likes_dislikes')
+        .insert([{
+          user_id: authUser.id,
+          target_user_id: userId,
+          action: action
+        }]);
+
+      if (insertError) {
+        console.error('❌ Error inserting like/dislike:', insertError);
+        alert(`Failed to ${action}: ` + insertError.message);
         return;
       }
 
-      // Check if already friends
-      const { data: existingFriend } = await supabase
-        .from('friendships')
-        .select('id')
-        .or(`and(user_id.eq.${authUser.id},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${authUser.id})`)
-        .single();
+      console.log(`✅ ${action} recorded successfully`);
 
-      if (existingFriend) {
-        alert('Already friends with this user');
-        return;
+      // If it was a like, check for a match
+      if (action === 'like') {
+        const { data: reciprocalLike, error: matchError } = await supabase
+          .from('likes_dislikes')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('target_user_id', authUser.id)
+          .eq('action', 'like')
+          .single();
+
+        if (!matchError && reciprocalLike) {
+          console.log('🎉 IT\'S A MATCH!');
+          alert(`🎉 It's a Match! You can now chat with this user.`);
+          
+          // Create friendship automatically
+          const userId1 = authUser.id < userId ? authUser.id : userId;
+          const userId2 = authUser.id < userId ? userId : authUser.id;
+          
+          const { error: friendshipError } = await supabase
+            .from('friendships')
+            .insert([{
+              user1_id: userId1,
+              user2_id: userId2,
+              status: 'accepted',
+              created_at: new Date().toISOString()
+            }]);
+
+          if (friendshipError) {
+            console.error('❌ Error creating friendship:', friendshipError);
+          } else {
+            console.log('✅ Friendship created from match');
+          }
+        } else {
+          alert(`💖 You liked this user. If they like you back, it will be a match!`);
+        }
+      } else {
+        alert(`👎 You're not interested in this user. They won't appear in your search again.`);
       }
 
+      // Refresh the search to remove this user from results
+      await searchUsers();
+      
+    } catch (error) {
+      console.error('💥 Exception in handleLikeDislike:', error);
+      alert('An unexpected error occurred');
+    }
+  };
+
+  // Debug function to reset all likes/dislikes
+  const resetAllRatings = async () => {
+    if (!authUser) return;
+    
+    const confirmReset = window.confirm('Are you sure you want to reset all your ratings? This will allow you to see all users again.');
+    if (!confirmReset) return;
+    
+    setLoading(true);
+    
+    try {
       const { error } = await supabase
-        .from('friend_requests')
-        .insert({
-          sender_id: authUser.id,
-          receiver_id: userId,
-          status: 'pending'
-        });
-
-      if (!error) {
-        alert('Friend request sent!');
+        .from('likes_dislikes')
+        .delete()
+        .eq('user_id', authUser.id);
+        
+      if (error) {
+        console.error('Error resetting ratings:', error);
+        alert('Failed to reset ratings: ' + error.message);
+      } else {
+        console.log('✅ All ratings reset');
+        alert('All ratings reset! The list will refresh automatically.');
+        // Small delay to ensure database has processed the deletion
+        await new Promise(resolve => setTimeout(resolve, 100));
+        // Automatically refresh the search to show available users
+        await searchUsers();
       }
     } catch (error) {
-      console.error('Error sending friend request:', error);
+      console.error('Exception resetting ratings:', error);
+      alert('An error occurred while resetting ratings');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -337,7 +473,14 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   useEffect(() => {
-    searchUsers();
+    // Add a small delay to ensure all database connections are ready
+    const timer = setTimeout(() => {
+      if (authUser) {
+        searchUsers();
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [authUser]);
 
   return (
@@ -407,6 +550,13 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   >
                     Clear
                   </button>
+                  <button
+                    onClick={resetAllRatings}
+                    className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors"
+                    title="Reset all your like/dislike ratings to see all users again"
+                  >
+                    🔄 Reset
+                  </button>
                 </div>
               </div>
 
@@ -457,12 +607,20 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         </div>
                       )}
 
-                      <button
-                        onClick={() => sendFriendRequest(user.user_id)}
-                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-blue-600"
-                      >
-                        🤝 Add Friend
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleLikeDislike(user.user_id, 'dislike')}
+                          className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                        >
+                          👎 Not Interested
+                        </button>
+                        <button
+                          onClick={() => handleLikeDislike(user.user_id, 'like')}
+                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                        >
+                          💖 Like
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

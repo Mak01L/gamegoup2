@@ -548,7 +548,7 @@ const Home: React.FC = () => {
           )}
         </div>
         
-        {/* Modal para crear sala */}
+        {/* Modal to create room */}
         {showCreateModal && (
           <CreateRoomModal
             onClose={() => setShowCreateModal(false)}

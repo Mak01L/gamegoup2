@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, forwardRef } from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'ghost' | 'neon';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -14,7 +14,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   animate?: boolean;
 }
 
-const Button: React.FC<ButtonProps> = ({ 
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(({ 
   children, 
   onClick, 
   type = 'button', 
@@ -28,7 +28,7 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   animate = true,
   ...props
-}) => {
+}, ref) => {
   const [isPressed, setIsPressed] = useState(false);
   const [ripples, setRipples] = useState<Array<{ x: number; y: number; id: number }>>([]);
 
@@ -130,6 +130,7 @@ const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
+      ref={ref}
       type={type}
       onClick={handleClick}
       onMouseDown={() => setIsPressed(true)}
@@ -199,6 +200,8 @@ const Button: React.FC<ButtonProps> = ({
       )}
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';
 
 export default Button;
