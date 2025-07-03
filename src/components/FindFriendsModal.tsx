@@ -272,26 +272,36 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         if (!matchError && reciprocalLike) {
           console.log('🎉 IT\'S A MATCH!');
-          alert(`🎉 It's a Match! You can now chat with this user.`);
+          alert(`🎉 It's a Match! You can now see them in your Matches tab and start chatting.`);
           
-          // Create friendship automatically
+          // Create match entry in user_matches table
           const userId1 = authUser.id < userId ? authUser.id : userId;
           const userId2 = authUser.id < userId ? userId : authUser.id;
           
-          const { error: friendshipError } = await supabase
-            .from('friendships')
+          const { error: matchEntryError } = await supabase
+            .from('user_matches')
             .insert([{
               user1_id: userId1,
               user2_id: userId2,
-              status: 'accepted',
-              created_at: new Date().toISOString()
+              matched_at: new Date().toISOString(),
+              chat_started: false,
+              is_active: true
             }]);
 
-          if (friendshipError) {
-            console.error('❌ Error creating friendship:', friendshipError);
+          if (matchEntryError) {
+            console.error('❌ Error creating match entry:', matchEntryError);
+            // Check if it's a duplicate error (match already exists)
+            if (matchEntryError.code === '23505') {
+              console.log('⚠️ Match already exists, continuing...');
+            } else {
+              alert('Error creating match: ' + matchEntryError.message);
+            }
           } else {
-            console.log('✅ Friendship created from match');
+            console.log('✅ Match entry created - check your Matches tab!');
           }
+          
+          // NOTE: We don't create friendship here anymore
+          // Friendship will be created when users actually start chatting
         } else {
           alert(`💖 You liked this user. If they like you back, it will be a match!`);
         }

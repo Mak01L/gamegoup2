@@ -65,3 +65,41 @@ WHERE l1.user_id != l2.user_id;
 -- Grant permissions
 GRANT ALL ON likes_dislikes TO authenticated;
 GRANT SELECT ON matches_view TO authenticated;
+
+-- Create user_matches table for the messaging system
+-- This will store confirmed matches to be displayed in the matches tab
+CREATE TABLE user_matches (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user1_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user2_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    matched_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    chat_started BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    -- Ensure one match per pair of users
+    UNIQUE(user1_id, user2_id)
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_user_matches_user1_id ON user_matches(user1_id);
+CREATE INDEX idx_user_matches_user2_id ON user_matches(user2_id);
+CREATE INDEX idx_user_matches_is_active ON user_matches(is_active);
+
+-- Enable RLS
+ALTER TABLE user_matches ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for user_matches
+-- Users can view matches they're part of
+CREATE POLICY "Users can view their own matches" ON user_matches
+    FOR SELECT USING (user1_id = auth.uid() OR user2_id = auth.uid());
+
+-- Users can insert matches (through the application logic)
+CREATE POLICY "Users can insert matches" ON user_matches
+    FOR INSERT WITH CHECK (user1_id = auth.uid() OR user2_id = auth.uid());
+
+-- Users can update matches they're part of (e.g., mark chat as started)
+CREATE POLICY "Users can update their matches" ON user_matches
+    FOR UPDATE USING (user1_id = auth.uid() OR user2_id = auth.uid());
+
+-- Grant permissions
+GRANT ALL ON user_matches TO authenticated;
