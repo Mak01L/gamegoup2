@@ -550,8 +550,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                   const { data: existing, error: findError } = await supabase
                     .from('friend_requests')
                     .select('id')
-                    .eq('from_user_id', authUser.id)
-                    .eq('to_user_id', userId)
+                    .eq('sender_id', authUser.id)
+                    .eq('receiver_id', userId)
                     .maybeSingle();
                   if (existing) {
                     setError('Friend request already sent.');
@@ -560,7 +560,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
                   // Insert friend request
                   const { error: reqError } = await supabase
                     .from('friend_requests')
-                    .insert({ from_user_id: authUser.id, to_user_id: userId, status: 'pending', created_at: new Date().toISOString() });
+                    .insert({ sender_id: authUser.id, receiver_id: userId, status: 'pending', created_at: new Date().toISOString() });
                   if (reqError) {
                     setError('Failed to send friend request: ' + reqError.message);
                     return;

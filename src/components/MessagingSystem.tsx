@@ -12,7 +12,6 @@ interface Friend {
   friend_profile: {
     username: string;
     avatar_url?: string;
-    email?: string;
   };
 }
 
@@ -48,45 +47,195 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   useEffect(() => {
     if (authUser) {
-      fetchFriends();
-      fetchFriendRequests();
-      fetchMatches();
-      fetchPrivateMessages();
+      const runDebugAndFetch = async () => {
+        await debugProfileData(); // Add debug call
+        await fetchFriends();
+        await fetchFriendRequests();
+        await fetchMatches();
+        await fetchPrivateMessages();
+      };
+      runDebugAndFetch();
     }
   }, [authUser]);
+
+  // Debug function to check profile existence
+  const debugProfileData = async () => {
+    if (!authUser) return;
+    
+    console.log('🔍 DEBUG: Checking profile data...');
+    
+    // Check current user's profile
+    const { data: myProfile, error: myError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', authUser.id)
+      .single();
+    
+    console.log('👤 My profile:', myProfile);
+    console.log('❌ My profile error:', myError);
+    
+    // Check all profiles in the table
+    const { data: allProfiles, error: allError } = await supabase
+      .from('profiles')
+      .select('user_id, username, avatar_url')
+      .limit(10);
+    
+    console.log('👥 All profiles (first 10):', allProfiles);
+    console.log('❌ All profiles error:', allError);
+
+    // Check if we have any friendships
+    const { data: friendships, error: friendError } = await supabase
+      .from('friendships')
+      .select('*')
+      .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`);
+    
+    console.log('🤝 My friendships:', friendships);
+    console.log('❌ Friendships error:', friendError);
+
+    // For each friendship, check if the friend has a profile
+    if (friendships && friendships.length > 0) {
+      for (const friendship of friendships) {
+        const friendId = friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
+        console.log(`🔍 Checking profile for friend ID: ${friendId}`);
+        
+        const { data: friendProfile, error: friendProfileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', friendId)
+          .single();
+        
+        console.log(`👤 Profile for ${friendId}:`, friendProfile);
+        console.log(`❌ Profile error for ${friendId}:`, friendProfileError);
+
+        // If no profile exists, try to create one with a basic username
+        if (!friendProfile && friendProfileError?.code === 'PGRST116') {
+          console.log(`⚠️ No profile found for ${friendId}, attempting to create basic profile...`);
+          
+          const basicProfile = {
+            user_id: friendId,
+            username: `User-${friendId.slice(0, 8)}`,
+            avatar_url: '/default-avatar.png',
+            created_at: new Date().toISOString()
+          };
+
+          const { data: createdProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert(basicProfile)
+            .select()
+            .single();
+
+          console.log(`✅ Created profile for ${friendId}:`, createdProfile);
+          console.log(`❌ Create profile error for ${friendId}:`, createError);
+        }
+      }
+    }
+  };
 
   const fetchFriends = async () => {
     if (!authUser) return;
 
-    const { data, error } = await supabase
-      .from('friendships')
-      .select(`
-        *,
-        friend_profile:profiles!friendships_friend_id_fkey(username, avatar_url, email)
-      `)
-      .eq('user_id', authUser.id)
-      .eq('status', 'accepted');
+    console.log('🔍 Fetching friends for user:', authUser.id);
 
-    if (!error && data) {
-      setFriends(data);
+    try {
+      // First, get all friendships where the user is involved
+      const { data: friendships, error: friendshipsError } = await supabase
+        .from('friendships')
+        .select('*')
+        .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
+        .eq('status', 'accepted');
+
+      console.log('📊 Raw friendships data:', friendships);
+      console.log('❌ Friendships error:', friendshipsError);
+
+      if (friendshipsError || !friendships || friendships.length === 0) {
+        console.log('❌ No friendships found or error occurred');
+        setFriends([]);
+        return;
+      }
+
+      // Get all friend IDs to batch fetch profiles
+      const friendIds = friendships.map(friendship => {
+        return friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
+      });
+
+      console.log('👥 Friend IDs to fetch:', friendIds);
+
+      // Batch fetch all friend profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, username, avatar_url')
+        .in('user_id', friendIds);
+
+      console.log('👤 Fetched profiles:', profiles);
+      console.log('❌ Profiles error:', profilesError);
+
+      // Map friendships with their corresponding profiles
+      const friendsWithProfiles = friendships.map(friendship => {
+        const friendId = friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
+        const friendProfile = profiles?.find(p => p.user_id === friendId);
+        
+        console.log(`🔗 Mapping friendship ${friendship.id}:`);
+        console.log(`   Friend ID: ${friendId}`);
+        console.log(`   Found profile:`, friendProfile);
+
+        return {
+          ...friendship,
+          friend_id: friendId,
+          friend_profile: friendProfile || { 
+            username: 'Unknown User', 
+            avatar_url: '/default-avatar.png'
+          }
+        };
+      });
+
+      console.log('✅ Final friends with profiles:', friendsWithProfiles);
+      setFriends(friendsWithProfiles);
+
+    } catch (error) {
+      console.error('💥 Exception in fetchFriends:', error);
+      setFriends([]);
     }
   };
 
   const fetchFriendRequests = async () => {
     if (!authUser) return;
 
-    const { data, error } = await supabase
+    console.log('Fetching friend requests for user:', authUser.id);
+
+    // First get the friend requests
+    const { data: requests, error: requestsError } = await supabase
       .from('friend_requests')
-      .select(`
-        *,
-        sender_profile:profiles!friend_requests_sender_id_fkey(username, avatar_url)
-      `)
+      .select('*')
       .eq('receiver_id', authUser.id)
       .eq('status', 'pending');
 
-    if (!error && data) {
-      setFriendRequests(data);
+    console.log('Friend requests raw data:', requests);
+    console.log('Friend requests error:', requestsError);
+
+    if (requestsError || !requests) {
+      console.error('Error fetching friend requests:', requestsError);
+      setFriendRequests([]);
+      return;
     }
+
+    // Then get the profiles for each sender
+    const requestsWithProfiles = await Promise.all(
+      requests.map(async (request) => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('user_id', request.sender_id)
+          .single();
+
+        return {
+          ...request,
+          sender_profile: profile || { username: 'Unknown', avatar_url: null }
+        };
+      })
+    );
+
+    console.log('Friend requests with profiles:', requestsWithProfiles);
+    setFriendRequests(requestsWithProfiles);
   };
 
   const fetchMatches = async () => {
@@ -187,7 +336,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       const { data: existingFriend } = await supabase
         .from('friendships')
         .select('id')
-        .or(`and(user_id.eq.${authUser.id},friend_id.eq.${user.user_id}),and(user_id.eq.${user.user_id},friend_id.eq.${authUser.id})`)
+        .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${user.user_id}),and(user1_id.eq.${user.user_id},user2_id.eq.${authUser.id})`)
         .single();
 
       if (existingFriend) {
@@ -232,46 +381,103 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   const handleFriendRequest = async (requestId: string, action: 'accept' | 'reject') => {
+    console.log(`🔄 ${action.toUpperCase()} friend request:`, requestId);
+    
     const request = friendRequests.find(r => r.id === requestId);
-    if (!request) return;
-
-    // Update request status
-    const { error: updateError } = await supabase
-      .from('friend_requests')
-      .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
-      .eq('id', requestId);
-
-    if (updateError) return;
-
-    if (action === 'accept') {
-      // Create friendship entries for both users
-      await supabase.from('friendships').insert([
-        {
-          user_id: authUser!.id,
-          friend_id: request.sender_id,
-          status: 'accepted'
-        },
-        {
-          user_id: request.sender_id,
-          friend_id: authUser!.id,
-          status: 'accepted'
-        }
-      ]);
-
-      fetchFriends();
+    if (!request) {
+      console.error('❌ Request not found:', requestId);
+      setMessage('Request not found');
+      return;
     }
 
-    fetchFriendRequests();
+    console.log('📋 Processing request:', request);
+
+    try {
+      // Update request status
+      console.log('📝 Updating request status to:', action === 'accept' ? 'accepted' : 'rejected');
+      const { error: updateError } = await supabase
+        .from('friend_requests')
+        .update({ status: action === 'accept' ? 'accepted' : 'rejected' })
+        .eq('id', requestId);
+
+      if (updateError) {
+        console.error('❌ Failed to update request status:', updateError);
+        setMessage('Failed to update friend request status: ' + updateError.message);
+        return;
+      }
+
+      console.log('✅ Request status updated successfully');
+
+      if (action === 'accept') {
+        console.log('👥 Creating friendship entry...');
+        
+        // Based on the logs, we know the table structure uses user1_id and user2_id
+        // We'll create a single friendship record with the lower ID as user1_id and higher ID as user2_id
+        // This prevents duplicate entries and maintains consistency
+        const userId1 = authUser!.id < request.sender_id ? authUser!.id : request.sender_id;
+        const userId2 = authUser!.id < request.sender_id ? request.sender_id : authUser!.id;
+        
+        console.log('👥 Creating friendship with user1_id:', userId1, 'user2_id:', userId2);
+        
+        const { error: insertError, data: insertData } = await supabase
+          .from('friendships')
+          .insert([{
+            user1_id: userId1,
+            user2_id: userId2,
+            status: 'accepted',
+            created_at: new Date().toISOString()
+          }])
+          .select();
+
+        if (insertError) {
+          console.error('❌ Failed to create friendship:', insertError);
+          
+          // Check if it's an RLS policy issue
+          if (insertError.message.includes('row-level security policy')) {
+            setMessage('❌ Permission denied: Unable to create friendship due to security settings. Please contact support.');
+          } else if (insertError.message.includes('duplicate key')) {
+            setMessage('✅ You are already friends with this user!');
+          } else {
+            setMessage('❌ Failed to create friendship: ' + insertError.message);
+          }
+          
+          // Revert the request status if friendship creation failed
+          await supabase.from('friend_requests').update({ status: 'pending' }).eq('id', requestId);
+          return;
+        }
+
+        console.log('✅ Friendship created successfully:', insertData);
+        setMessage('✅ Friend request accepted! You are now friends.');
+        
+        // Clear message after 5 seconds
+        setTimeout(() => setMessage(''), 5000);
+        
+        // Refresh friends list
+        console.log('🔄 Refreshing friends list...');
+        await fetchFriends();
+      } else {
+        setMessage('❌ Friend request rejected.');
+        setTimeout(() => setMessage(''), 3000);
+      }
+
+      // Refresh friend requests list
+      console.log('🔄 Refreshing friend requests list...');
+      await fetchFriendRequests();
+      
+    } catch (error) {
+      console.error('💥 Exception in handleFriendRequest:', error);
+      setMessage('An unexpected error occurred: ' + (error as Error).message);
+    }
   };
 
   const removeFriend = async (friendId: string) => {
     if (!authUser) return;
 
-    // Remove both friendship entries
+    // Remove the friendship entry (there should only be one with user1_id < user2_id)
     await supabase
       .from('friendships')
       .delete()
-      .or(`and(user_id.eq.${authUser.id},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${authUser.id})`);
+      .or(`and(user1_id.eq.${authUser.id},user2_id.eq.${friendId}),and(user1_id.eq.${friendId},user2_id.eq.${authUser.id})`);
 
     fetchFriends();
   };
@@ -288,6 +494,17 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 ✕
               </button>
             </div>
+            
+            {/* Status Message */}
+            {message && (
+              <div className={`mb-4 p-3 rounded-lg border text-sm ${
+                message.includes('✅') || message.includes('successfully') || message.includes('accepted') 
+                  ? 'text-green-300 bg-green-900/30 border-green-500/50' 
+                  : 'text-red-300 bg-red-900/30 border-red-500/50'
+              }`}>
+                {message}
+              </div>
+            )}
             
             {/* Tabs */}
             <div className="flex bg-[#2D2350] rounded-lg">
@@ -364,7 +581,6 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         />
                         <div>
                           <div className="font-medium text-white">{friend.friend_profile.username}</div>
-                          <div className="text-sm text-gray-400">{friend.friend_profile.email}</div>
                         </div>
                       </div>
                       <div className="flex gap-2">
@@ -482,8 +698,10 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     </div>
                     
                     {message && (
-                      <div className={`text-sm p-2 rounded ${
-                        message.includes('successfully') ? 'text-green-400 bg-green-900/20' : 'text-red-400 bg-red-900/20'
+                      <div className={`text-sm p-3 rounded-lg border ${
+                        message.includes('✅') || message.includes('successfully') || message.includes('accepted') 
+                          ? 'text-green-300 bg-green-900/30 border-green-500/50' 
+                          : 'text-red-300 bg-red-900/30 border-red-500/50'
                       }`}>
                         {message}
                       </div>
