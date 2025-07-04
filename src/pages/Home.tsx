@@ -4,7 +4,9 @@ import PinnedRoomsSidebar from '../components/PinnedRoomsSidebar';
 import UserMenu from '../components/UserMenu';
 import CreateRoomModal from '../modals/CreateRoomModal';
 import { supabase } from '../lib/supabaseClient';
-import AdBanner from '../components/AdBanner';
+import { functionalRealtimeSystem } from '../lib/functionalRealtimeSystem';
+import GoogleAdSense from '../components/GoogleAdSense';
+import { initializeAdOptimizer } from '../lib/adSenseOptimizer';
 import Footer from '../components/Footer';
 import BackgroundParticles from '../components/BackgroundParticles';
 import { usePinnedRoomsStore } from '../store/pinnedRoomsStore';
@@ -75,13 +77,22 @@ const Home: React.FC = () => {
     }
   }, [authUser]);
 
+  // Initialize AdSense optimizer for better monetization
+  useEffect(() => {
+    initializeAdOptimizer();
+  }, []);
+
   // Silent cleanup of empty rooms every 5 minutes
   useEffect(() => {
     const cleanupInterval = setInterval(async () => {
-      console.log('🧹 Silent cleanup of empty rooms...');
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('🧹 Silent cleanup of empty rooms...');
+      }
       const deletedRoomIds = await cleanEmptyRooms();
       if (deletedRoomIds.length > 0) {
-        console.log(`🗑️ Removed ${deletedRoomIds.length} empty rooms`);
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log(`🗑️ Removed ${deletedRoomIds.length} empty rooms`);
+        }
         setRooms(prevRooms => prevRooms.filter(room => !deletedRoomIds.includes(room.id)));
       }
     }, 300000);
@@ -103,7 +114,9 @@ const Home: React.FC = () => {
       
       // Debounce updates by 3 seconds for smoother experience
       updateTimeout = window.setTimeout(async () => {
-        console.log('🔄 Background room count update for:', roomId);
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log('🔄 Background room count update for:', roomId);
+        }
         
         const { data: users } = await supabase.from('room_users').select('id').eq('room_id', roomId);
         const userCount = users?.length || 0;
@@ -129,45 +142,94 @@ const Home: React.FC = () => {
     };
   }, []);
 
-  // Global subscription to detect room changes (optimized)
+  // Global subscription to detect room changes using Functional Realtime System
   useEffect(() => {
-    let subscriptionTimeout: number;
-    
-    const subscription = supabase
-      .channel('rooms-global-optimized')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, async (payload) => {
-        console.log('New room created globally:', payload.new.id);
-        
-        // Debounce room additions
-        if (subscriptionTimeout) {
-          window.clearTimeout(subscriptionTimeout);
-        }
-        
-        subscriptionTimeout = window.setTimeout(async () => {
-          const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
-          const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
-          
-          setRooms(prevRooms => {
-            // Check if room already exists to prevent duplicates
-            const exists = prevRooms.some(room => room.id === newRoom.id);
-            if (exists) return prevRooms;
-            return [newRoom, ...prevRooms];
-          });
-        }, 500);
-      })
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'rooms' }, (payload) => {
-        console.log('Room deleted globally:', payload.old.id);
-        setRooms(prevRooms => prevRooms.filter(room => room.id !== payload.old.id));
-      })
-      .subscribe();
+    // Only subscribe if we have an authenticated user
+    if (!authUser) return;
 
-    return () => {
-      if (subscriptionTimeout) {
-        window.clearTimeout(subscriptionTimeout);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('🔗 [Home] Configurando sistema resiliente de tiempo real...');
+    }
+
+    // Crear suscripción resiliente que SIEMPRE funciona
+    const { cleanup } = functionalRealtimeSystem.createResilientSubscription(
+      'rooms-global',
+      'rooms',
+      {
+        onInsert: async (payload) => {
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('🆕 [Realtime] Nueva sala creada:', payload.new.id);
+          }
+          
+          try {
+            const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
+            const newRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
+            
+            setRooms(prevRooms => {
+              const exists = prevRooms.some(room => room.id === newRoom.id);
+              if (exists) return prevRooms;
+              return [newRoom, ...prevRooms];
+            });
+          } catch (error) {
+            // Error silenciado automáticamente
+          }
+        },
+        
+        onUpdate: async (payload) => {
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('🔄 [Realtime] Sala actualizada:', payload.new.id);
+          }
+          
+          try {
+            const { data: users } = await supabase.from('room_users').select('id').eq('room_id', payload.new.id);
+            const updatedRoom = { ...payload.new, user_count: users?.length || 0 } as Room;
+            
+            setRooms(prevRooms => 
+              prevRooms.map(room => 
+                room.id === updatedRoom.id ? updatedRoom : room
+              )
+            );
+          } catch (error) {
+            // Error silenciado automáticamente
+          }
+        },
+        
+        onDelete: (payload) => {
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('🗑️ [Realtime] Sala eliminada:', payload.old.id);
+          }
+          setRooms(prevRooms => prevRooms.filter(room => room.id !== payload.old.id));
+        },
+
+        // Fallback para cuando tiempo real no funciona
+        onData: (data) => {
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('🔄 [Fallback] Datos actualizados via polling');
+          }
+          setRooms(data || []);
+        }
+      },
+      {
+        schema: 'public',
+        // Query de fallback - mantiene funcionalidad sin tiempo real
+        fallbackQuery: async () => {
+          const { data } = await supabase
+            .from('rooms')
+            .select(`
+              *,
+              user_count:room_users(count),
+              user_previews:room_users(user:profiles(username, avatar_url))
+            `)
+            .order('created_at', { ascending: false });
+          
+          return data || [];
+        }
       }
-      supabase.removeChannel(subscription);
-    };
-  }, []);
+    );
+
+    // Cleanup al desmontar - sistema se limpia automáticamente
+    return cleanup;
+  }, [authUser]); // Solo re-suscribir cuando cambie el estado de auth
 
   const handleApply = async () => {
     setLoading(true);
@@ -345,7 +407,11 @@ const Home: React.FC = () => {
       {!isMobile && (
         <div className="min-w-[90px] max-w-[220px] w-[18vw] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
           <PinnedRoomsSidebar />
-          <AdBanner position="sidebar" />
+          <GoogleAdSense 
+            adSlot="8765432109" 
+            adFormat="vertical"
+            position="sidebar"
+          />
         </div>
       )}
       
@@ -415,7 +481,11 @@ const Home: React.FC = () => {
 
         {/* Professional filters section */}
         <div className="w-full max-w-[540px] mx-auto glass-surface rounded-2xl shadow-professional p-7 mb-4 relative border border-primary-500/20">
-          <AdBanner position="top" />
+          <GoogleAdSense 
+            adSlot="1234567890" 
+            adFormat="horizontal"
+            position="top"
+          />
           <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
           <div className="flex justify-end mt-4">
             <Button

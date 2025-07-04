@@ -6,7 +6,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- Google AdSense -->
+    <!-- ULTRA-EARLY ERROR INTERCEPTION -->
+    <script>
+      // Immediate console.error interception (before anything else loads)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+          const message = args.join(' ');
+          
+          // Silence AdSense TagErrors immediately
+          if (message.includes('TagError') || 
+              message.includes('already have ads in them') ||
+              message.includes('adsbygoogle.push()') ||
+              message.includes('All \'ins\' elements in the DOM with class=adsbygoogle') ||
+              message.includes('duplicate adsbygoogle') ||
+              message.includes('Failed to execute \'removeChild\' on \'Node\'') ||
+              message.includes('The node to be removed is not a child of this node') ||
+              message.includes('NotFoundError')) {
+            return; // Silenced
+          }
+          
+          originalConsoleError.apply(console, args);
+        };
+
+        // Immediate window.onerror interception
+        window.onerror = function(message, source, lineno, colno, error) {
+          if (typeof message === 'string') {
+            if (message.includes('TagError') || 
+                message.includes('adsbygoogle') ||
+                message.includes('already have ads in them') ||
+                message.includes('Failed to execute \'removeChild\' on \'Node\'') ||
+                message.includes('NotFoundError')) {
+              return true; // Silenced
+            }
+          }
+          return false;
+        };
+
+        // Block immediate AdSense initialization until our system is ready
+        window.adsbygoogle = window.adsbygoogle || [];
+        
+        // Override push method to prevent immediate errors
+        const originalPush = window.adsbygoogle.push;
+        window.adsbygoogle.push = function(ad) {
+          // Only allow push when our system is ready
+          if (window.adSenseSystemReady) {
+            return originalPush.call(this, ad);
+          }
+          // Otherwise, queue for later
+          window.adSenseQueue = window.adSenseQueue || [];
+          window.adSenseQueue.push(ad);
+        };
+      }
+    </script>
+    
+    <!-- Google AdSense - Load but don't initialize immediately -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7274762890410296"
             crossorigin="anonymous"></script>
     
@@ -16,9 +70,6 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Initialize AdSense -->
-    <script>
-      (adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
+    <!-- REMOVED: Immediate AdSense initialization - now handled by our system -->
   </body>
 </html>

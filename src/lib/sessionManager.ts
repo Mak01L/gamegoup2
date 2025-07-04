@@ -37,7 +37,9 @@ export const SessionManager = {
     try {
       localStorage.removeItem(AUTH_CONFIG.STORAGE_KEY);
       localStorage.removeItem('sb-xzdyauqqvbsusrnovzhs-auth-token'); // Default Supabase key
-      console.log('🧹 Cleared stored session');
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('🧹 Cleared stored session');
+      }
     } catch (error) {
       console.error('Error clearing stored session:', error);
     }
@@ -47,11 +49,13 @@ export const SessionManager = {
   debugStoredSessions(): void {
     if (typeof window === 'undefined') return;
     
-    console.log('🔍 Debug: Stored sessions');
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes('auth') || key.includes('supabase'))) {
-        console.log(`  ${key}:`, localStorage.getItem(key));
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('🔍 Debug: Stored sessions');
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('auth') || key.includes('supabase'))) {
+          console.log(`  ${key}:`, localStorage.getItem(key));
+        }
       }
     }
   }

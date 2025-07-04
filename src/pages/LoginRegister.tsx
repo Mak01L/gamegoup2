@@ -213,12 +213,10 @@ const LoginRegister: React.FC = () => {
       <div className="absolute -bottom-10 -right-10 w-[400px] h-[400px] opacity-40 z-0 blur-3xl bg-[radial-gradient(circle,_#A78BFA_0%,_transparent_70%)]" />
       {/* Top AdSense Banner */}
       <div className="w-full max-w-4xl mb-6 z-20 flex justify-center">
-        <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
-          <GoogleAdSense 
-            adSlot="1234567890"
-            className="block min-h-[90px] w-full"
-          />
-        </div>
+        <GoogleAdSense 
+          adSlot="1234567890"
+          position="top"
+        />
       </div>
       
       {/* Header */}
@@ -370,12 +368,10 @@ const LoginRegister: React.FC = () => {
       
       {/* Bottom AdSense Banner */}
       <div className="w-full max-w-4xl mt-6 z-20 flex justify-center">
-        <div className="bg-[rgba(40,30,70,0.3)] rounded-lg p-4 border border-[#7C5CFA]/20 backdrop-blur-sm min-h-[120px] flex items-center justify-center">
-          <GoogleAdSense 
-            adSlot="0987654321"
-            style={{ display: 'block', minHeight: '90px', width: '100%' }}
-          />
-        </div>
+        <GoogleAdSense 
+          adSlot="0987654321"
+          position="top"
+        />
       </div>
       {/* Forgot password modal */}
       {showForgot && (

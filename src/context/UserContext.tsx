@@ -21,14 +21,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Safety timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
-      console.log('⏰ Loading timeout reached, stopping loading state');
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('⏰ Loading timeout reached, stopping loading state');
+      }
       setLoading(false);
     }, AUTH_CONFIG.LOADING_TIMEOUT);
     
     // On mount, try to restore Supabase session
     const restoreSession = async () => {
       try {
-        console.log('🔄 Restoring session...');
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log('🔄 Restoring session...');
+        }
         setLoading(true);
         
         // Debug stored sessions
@@ -36,7 +40,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Check if we have a stored session
         const hasStored = SessionManager.hasStoredSession();
-        console.log('💾 Has stored session:', hasStored);
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log('💾 Has stored session:', hasStored);
+        }
         
         // First check if there's a stored session
         const { data, error } = await supabase.auth.getSession();
@@ -51,7 +57,9 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const session = data.session;
         
         if (session?.user) {
-          console.log('✅ Session restored for:', session.user.email);
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('✅ Session restored for:', session.user.email);
+          }
           setAuthUser(session.user);
           
           // Load profile asynchronously
@@ -63,16 +71,24 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
               
             if (profileData) {
-              console.log('👤 Profile loaded:', profileData.username || 'No username');
+              if (import.meta.env.VITE_DEBUG === 'true') {
+                console.log('👤 Profile loaded:', profileData.username || 'No username');
+              }
               setProfile(profileData);
             } else {
-              console.log('👤 No profile found, will be created when needed');
+              if (import.meta.env.VITE_DEBUG === 'true') {
+                console.log('👤 No profile found, will be created when needed');
+              }
             }
           } catch (profileError) {
-            console.log('👤 Profile will be created when needed');
+            if (import.meta.env.VITE_DEBUG === 'true') {
+              console.log('👤 Profile will be created when needed');
+            }
           }
         } else {
-          console.log('❌ No session found');
+          if (import.meta.env.VITE_DEBUG === 'true') {
+            console.log('❌ No session found');
+          }
           setAuthUser(null);
           setProfile(null);
         }
@@ -88,10 +104,14 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Subscribe to session changes (login/logout cross-tab)
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('Auth state changed:', event);
+      }
       
       if (session?.user) {
-        console.log('User logged in:', session.user.email);
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log('User logged in:', session.user.email);
+        }
         setAuthUser(session.user);
         
         // Load profile asynchronously without blocking
@@ -104,15 +124,21 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
               
             if (data) {
-              console.log('Profile loaded on auth change:', data);
+              if (import.meta.env.VITE_DEBUG === 'true') {
+                console.log('Profile loaded on auth change:', data);
+              }
               setProfile(data);
             }
           } catch (error) {
-            console.log('Profile will be created when needed');
+            if (import.meta.env.VITE_DEBUG === 'true') {
+              console.log('Profile will be created when needed');
+            }
           }
         }, 100);
       } else {
-        console.log('User logged out');
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.log('User logged out');
+        }
         setAuthUser(null);
         setProfile(null);
       }

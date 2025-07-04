@@ -94,16 +94,6 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setLoading(true);
     
     try {
-      console.log('🔍 Starting search for users...');
-      
-      // First check how many profiles exist in total
-      const { count: totalProfiles } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .neq('user_id', authUser.id);
-      
-      console.log('📊 Total profiles in database (excluding self):', totalProfiles);
-      
       // First, get users that have already been rated by the current user
       const { data: ratedUsers, error: ratedError } = await supabase
         .from('likes_dislikes')
@@ -111,12 +101,10 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .eq('user_id', authUser.id);
 
       if (ratedError) {
-        console.error('❌ Error fetching rated users:', ratedError);
         // Continue even if there's an error - maybe the table doesn't exist yet
       }
 
       const ratedUserIds = ratedUsers?.map(r => r.target_user_id) || [];
-      console.log('👍 Already rated user IDs:', ratedUserIds);
 
       // Also get existing friends to exclude them
       const { data: existingFriends, error: friendsError } = await supabase
@@ -124,15 +112,9 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .select('user1_id, user2_id')
         .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`);
 
-      if (friendsError) {
-        console.error('❌ Error fetching friends:', friendsError);
-      }
-
       const friendIds = existingFriends?.map(f => 
         f.user1_id === authUser.id ? f.user2_id : f.user1_id
       ) || [];
-
-      console.log('🤝 Existing friend IDs:', friendIds);
 
       // Also get existing matches to exclude them
       const { data: existingMatches, error: matchesError } = await supabase
@@ -141,19 +123,12 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
         .eq('is_active', true);
 
-      if (matchesError) {
-        console.error('❌ Error fetching matches:', matchesError);
-      }
-
       const matchIds = existingMatches?.map(m => 
         m.user1_id === authUser.id ? m.user2_id : m.user1_id
       ) || [];
 
-      console.log('💖 Existing match IDs:', matchIds);
-
       // Combine all arrays to exclude
       const excludeUserIds = [...ratedUserIds, ...friendIds, ...matchIds];
-      console.log('🚫 Users to exclude:', excludeUserIds);
 
       let query = supabase
         .from('profiles')
@@ -164,48 +139,37 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       // Exclude already rated users and friends
       if (excludeUserIds.length > 0) {
         query = query.not('user_id', 'in', `(${excludeUserIds.join(',')})`);
-        console.log('🔍 Applied exclusion filter for', excludeUserIds.length, 'users');
       }
 
       if (filters.username.trim()) {
         query = query.ilike('username', `%${filters.username.trim()}%`);
-        console.log('🔍 Filtering by username:', filters.username.trim());
       }
 
       if (filters.genders.length > 0) {
         query = query.in('gender', filters.genders);
-        console.log('🔍 Filtering by genders:', filters.genders);
       }
 
       if (filters.sexualOrientations.length > 0) {
         query = query.in('sexual_orientation', filters.sexualOrientations);
-        console.log('🔍 Filtering by sexual orientations:', filters.sexualOrientations);
       }
 
       if (filters.countries.length > 0) {
         query = query.in('country', filters.countries);
-        console.log('🔍 Filtering by countries:', filters.countries);
       }
 
       const { data, error } = await query;
       
-      console.log('📊 Query result:', { data: data?.length, error });
-      
       if (error) {
-        console.error('❌ Query error:', error);
         setSearchResults([]);
         setLoading(false);
         return;
       }
       
       if (!data) {
-        console.log('❌ No data returned');
         setSearchResults([]);
         setLoading(false);
         return;
       }
-
-      console.log(`✅ Found ${data.length} users before client-side filtering`);
       
       // Filter by games and interests on client side since they're stored as comma-separated strings
       let filteredData = data;
@@ -218,7 +182,6 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             userGames.some(userGame => userGame.includes(game.toLowerCase()))
           );
         });
-        console.log(`🎮 After games filter: ${filteredData.length} users`);
       }
 
       if (filters.interests.length > 0) {
@@ -229,7 +192,6 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             userInterests.some(userInterest => userInterest.includes(interest.toLowerCase()))
           );
         });
-        console.log(`💝 After interests filter: ${filteredData.length} users`);
       }
 
       if (filters.connectionTypes.length > 0) {
@@ -240,14 +202,11 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             userConnectionTypes.some(userType => userType.includes(type.toLowerCase()))
           );
         });
-        console.log(`🔗 After connection types filter: ${filteredData.length} users`);
       }
 
-      console.log(`✨ Final result: ${filteredData.length} users to show`);
       setSearchResults(filteredData);
       
     } catch (error) {
-      console.error('💥 Exception in searchUsers:', error);
       setSearchResults([]);
     } finally {
       setLoading(false);
@@ -258,8 +217,6 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (!authUser) return;
 
     try {
-      console.log(`${action === 'like' ? '💖' : '👎'} ${action}ing user:`, userId);
-
       // Insert the like/dislike action
       const { error: insertError } = await supabase
         .from('likes_dislikes')
@@ -270,17 +227,12 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }]);
 
       if (insertError) {
-        console.error('❌ Error inserting like/dislike:', insertError);
         alert(`Failed to ${action}: ` + insertError.message);
         return;
       }
 
-      console.log(`✅ ${action} recorded successfully`);
-
       // If it was a like, check for a match
       if (action === 'like') {
-        console.log('🔍 Checking for reciprocal like from user:', userId, 'to user:', authUser.id);
-        
         const { data: reciprocalLike, error: matchError } = await supabase
           .from('likes_dislikes')
           .select('id')
@@ -289,17 +241,12 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           .eq('action', 'like')
           .single();
 
-        console.log('🔍 Reciprocal like query result:', { data: reciprocalLike, error: matchError });
-
         if (!matchError && reciprocalLike) {
-          console.log('🎉 IT\'S A MATCH!');
           alert(`🎉 It's a Match! You can now see them in your Matches tab and start chatting.`);
           
           // Create match entry in user_matches table
           const userId1 = authUser.id < userId ? authUser.id : userId;
           const userId2 = authUser.id < userId ? userId : authUser.id;
-          
-          console.log('📝 Creating match entry with:', { userId1, userId2 });
           
           const { error: matchEntryError } = await supabase
             .from('user_matches')
@@ -312,27 +259,15 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             }]);
 
           if (matchEntryError) {
-            console.error('❌ Error creating match entry:', matchEntryError);
-            console.error('   Error details:', {
-              code: matchEntryError.code,
-              message: matchEntryError.message,
-              details: matchEntryError.details,
-              hint: matchEntryError.hint
-            });
             // Check if it's a duplicate error (match already exists)
-            if (matchEntryError.code === '23505') {
-              console.log('⚠️ Match already exists, continuing...');
-            } else {
+            if (matchEntryError.code !== '23505') {
               alert('Error creating match: ' + matchEntryError.message);
             }
-          } else {
-            console.log('✅ Match entry created successfully - check your Matches tab!');
           }
           
           // NOTE: We don't create friendship here anymore
           // Friendship will be created when users actually start chatting
         } else {
-          console.log('💔 No reciprocal like found. Match error:', matchError);
           alert(`💖 You liked this user. If they like you back, it will be a match!`);
         }
       } else {
@@ -343,259 +278,9 @@ const FindFriendsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       await searchUsers();
       
     } catch (error) {
-      console.error('💥 Exception in handleLikeDislike:', error);
       alert('An unexpected error occurred');
     }
   };
-
-  // Debug function to reset all likes/dislikes
-  const resetAllRatings = async () => {
-    if (!authUser) return;
-    
-    const confirmReset = window.confirm('Are you sure you want to reset all your ratings? This will allow you to see all users again.');
-    if (!confirmReset) return;
-    
-    setLoading(true);
-    
-    try {
-      const { error } = await supabase
-        .from('likes_dislikes')
-        .delete()
-        .eq('user_id', authUser.id);
-        
-      if (error) {
-        console.error('Error resetting ratings:', error);
-        alert('Failed to reset ratings: ' + error.message);
-      } else {
-        console.log('✅ All ratings reset');
-        alert('All ratings reset! The list will refresh automatically.');
-        // Small delay to ensure database has processed the deletion
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Automatically refresh the search to show available users
-        await searchUsers();
-      }
-    } catch (error) {
-      console.error('Exception resetting ratings:', error);
-      alert('An error occurred while resetting ratings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Debug function to check for existing matches and create them
-  const checkForMissingMatches = async () => {
-    if (!authUser) return;
-    
-    setLoading(true);
-    
-    try {
-      console.log('🔍 Checking for missing matches...');
-      console.log('👤 Current user ID:', authUser.id);
-      
-      // Find all mutual likes that should be matches
-      const { data: mutualLikes, error } = await supabase
-        .from('likes_dislikes')
-        .select(`
-          user_id,
-          target_user_id,
-          created_at,
-          action
-        `)
-        .eq('action', 'like');
-
-      if (error) {
-        console.error('❌ Error fetching likes:', error);
-        alert('Error fetching likes: ' + error.message);
-        return;
-      }
-
-      console.log('💕 All likes in database:', mutualLikes);
-
-      // Find mutual likes for current user
-      const userLikes = mutualLikes?.filter(like => 
-        like.user_id === authUser.id || like.target_user_id === authUser.id
-      ) || [];
-
-      console.log('👤 User likes (involving current user):', userLikes);
-
-      let matchesCreated = 0;
-      let matchesAlreadyExisted = 0;
-
-      // Check for reciprocal likes
-      for (const like of userLikes) {
-        if (like.user_id === authUser.id) {
-          // Current user liked someone, check if they liked back
-          const reciprocal = mutualLikes?.find(r => 
-            r.user_id === like.target_user_id && 
-            r.target_user_id === authUser.id &&
-            r.action === 'like'
-          );
-          
-          if (reciprocal) {
-            console.log('💖 Found mutual like with:', like.target_user_id);
-            console.log('   My like:', like);
-            console.log('   Their like:', reciprocal);
-            
-            // Check if match already exists
-            const userId1 = authUser.id < like.target_user_id ? authUser.id : like.target_user_id;
-            const userId2 = authUser.id < like.target_user_id ? like.target_user_id : authUser.id;
-            
-            console.log('🔍 Checking for existing match:', { userId1, userId2 });
-            
-            const { data: existingMatch, error: matchCheckError } = await supabase
-              .from('user_matches')
-              .select('id, matched_at')
-              .eq('user1_id', userId1)
-              .eq('user2_id', userId2)
-              .single();
-              
-            if (matchCheckError && matchCheckError.code !== 'PGRST116') {
-              console.error('❌ Error checking existing match:', matchCheckError);
-              continue;
-            }
-              
-            if (!existingMatch) {
-              console.log('➕ Creating missing match...');
-              
-              const { data: newMatch, error: matchError } = await supabase
-                .from('user_matches')
-                .insert([{
-                  user1_id: userId1,
-                  user2_id: userId2,
-                  matched_at: new Date().toISOString(),
-                  chat_started: false,
-                  is_active: true
-                }])
-                .select();
-                
-              if (matchError) {
-                console.error('❌ Error creating match:', matchError);
-                console.error('   Error details:', {
-                  code: matchError.code,
-                  message: matchError.message,
-                  details: matchError.details,
-                  hint: matchError.hint
-                });
-                alert('Error creating match: ' + matchError.message);
-              } else {
-                console.log('✅ Match created successfully!', newMatch);
-                matchesCreated++;
-              }
-            } else {
-              console.log('✅ Match already exists:', existingMatch);
-              matchesAlreadyExisted++;
-            }
-          } else {
-            console.log('💔 No reciprocal like found for:', like.target_user_id);
-          }
-        }
-      }
-      
-      console.log('📊 Summary:');
-      console.log('   Matches created:', matchesCreated);
-      console.log('   Matches already existed:', matchesAlreadyExisted);
-      
-      alert(`✅ Finished checking for missing matches!\nCreated: ${matchesCreated}\nAlready existed: ${matchesAlreadyExisted}\n\nCheck your Matches tab!`);
-      
-      // Force refresh of messaging system (if it's open)
-      window.dispatchEvent(new CustomEvent('refreshMatches'));
-      
-    } catch (error) {
-      console.error('💥 Exception in checkForMissingMatches:', error);
-      alert('Error checking matches: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Debug function to check all table states
-  const debugAllTables = async () => {
-    if (!authUser) return;
-    
-    console.log('🚀 === COMPREHENSIVE DEBUG REPORT ===');
-    console.log('👤 Current user ID:', authUser.id);
-    
-    // Check likes_dislikes table
-    const { data: allLikes, error: likesError } = await supabase
-      .from('likes_dislikes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    console.log('💖 All likes_dislikes:', allLikes);
-    console.log('❌ Likes error:', likesError);
-    
-    // Check user_matches table
-    const { data: allMatches, error: matchesError } = await supabase
-      .from('user_matches')
-      .select('*')
-      .order('matched_at', { ascending: false });
-    
-    console.log('🤝 All user_matches:', allMatches);
-    console.log('❌ Matches error:', matchesError);
-    
-    // Check matches view
-    const { data: matchesView, error: viewError } = await supabase
-      .from('matches_view')
-      .select('*');
-    
-    console.log('👀 Matches view:', matchesView);
-    console.log('❌ View error:', viewError);
-    
-    // Check mutual likes for current user
-    if (allLikes) {
-      const myLikes = allLikes.filter(like => like.user_id === authUser.id && like.action === 'like');
-      const likesOnMe = allLikes.filter(like => like.target_user_id === authUser.id && like.action === 'like');
-      
-      console.log('🎯 My likes:', myLikes);
-      console.log('💕 Likes on me:', likesOnMe);
-      
-      // Find mutual likes
-      const mutualLikes = myLikes.filter(myLike => 
-        likesOnMe.some(likeOnMe => likeOnMe.user_id === myLike.target_user_id)
-      );
-      
-      console.log('💑 Mutual likes found:', mutualLikes);
-      
-      // Check if these mutual likes have corresponding matches
-      for (const mutual of mutualLikes) {
-        const userId1 = authUser.id < mutual.target_user_id ? authUser.id : mutual.target_user_id;
-        const userId2 = authUser.id < mutual.target_user_id ? mutual.target_user_id : authUser.id;
-        
-        const matchExists = allMatches?.find(match => 
-          match.user1_id === userId1 && match.user2_id === userId2
-        );
-        
-        console.log(`🔍 Mutual like with ${mutual.target_user_id}:`, {
-          mutualLike: mutual,
-          matchExists: !!matchExists,
-          matchData: matchExists
-        });
-      }
-    }
-    
-    console.log('🏁 === END DEBUG REPORT ===');
-  };
-
-  /*
-  // DEBUG FUNCTIONS - REMOVED FOR PRODUCTION
-  // These functions were temporary tools used during development
-  // and should not be part of the final application
-  
-  const debugEverything = async () => {
-    // This function was used to debug database states during development
-    // It has been removed for production to keep the codebase clean
-  };
-
-  const createTestReciprocalLike = async () => {
-    // This function was used to test the matching system during development
-    // It has been removed for production to prevent users from creating fake matches
-  };
-
-  const createTestReciprocalLikeDirect = async () => {
-    // This function was used to directly test match creation during development
-    // It has been removed for production to maintain data integrity
-  };
-  */
 
   const clearFilters = () => {
     setFilters({

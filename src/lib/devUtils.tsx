@@ -68,3 +68,42 @@ export const DevTools: React.FC<{
     </div>
   );
 };
+
+// AdSense management utilities
+export const resetAdSenseState = () => {
+  try {
+    // Clear all AdSense related attributes
+    document.querySelectorAll('.adsbygoogle').forEach(el => {
+      el.removeAttribute('data-adsbygoogle-status');
+      el.removeAttribute('data-processing');
+      el.innerHTML = '';
+    });
+    
+    // Clear the global adsbygoogle array if it exists
+    if (typeof window !== 'undefined' && (window as any).adsbygoogle) {
+      (window as any).adsbygoogle.length = 0;
+    }
+    
+    if (isDebugEnabled()) {
+      debugLog('AdSense state reset completed');
+    }
+  } catch (error) {
+    errorLog('Error resetting AdSense state', error);
+  }
+};
+
+// Force reload all ads (use carefully)
+export const forceReloadAds = () => {
+  if (!isDebugEnabled()) return; // Only allow in debug mode
+  
+  try {
+    resetAdSenseState();
+    
+    // Trigger a page reload after a delay to let cleanup complete
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  } catch (error) {
+    errorLog('Error forcing ad reload', error);
+  }
+};

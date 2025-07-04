@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import LoginRegister from './pages/LoginRegister';
@@ -6,10 +6,14 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ProtectedRoute from './components/ProtectedRoute';
 import ConnectionStatus from './components/ConnectionStatus';
-// Import connection test in development
-import './lib/connectionTest';
+import { initializeAdSenseSystem } from './lib/adSenseSystem';
 
 function App() {
+  useEffect(() => {
+    // Initialize the new AdSense Guard System
+    initializeAdSenseSystem();
+  }, []);
+
   return (
     <Router>
       <ConnectionStatus />

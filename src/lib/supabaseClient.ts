@@ -15,12 +15,22 @@ export const CONNECTION_STATUS = {
 
 let connectionStatus = CONNECTION_STATUS.UNKNOWN;
 
-// Function to create a Supabase client with persistent sessions
+// Function to create a Supabase client with persistent sessions and better Realtime config
 export function createSupabaseClient(): SupabaseClient {
-  console.log('🔧 Creating Supabase client with URL:', SUPABASE_URL);
+  if (import.meta.env.VITE_DEBUG === 'true') {
+    console.log('🔧 Creating Supabase client with URL:', SUPABASE_URL);
+  }
   
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: AUTH_CONFIG.SUPABASE_AUTH_OPTIONS,
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
+      heartbeatIntervalMs: 30000,
+      reconnectAfterMs: (tries) => Math.min(tries * 1000, 10000),
+      timeout: 10000,
+    },
     global: {
       headers: {
         'X-Client-Info': 'gamegoup-web'
@@ -33,21 +43,29 @@ export function createSupabaseClient(): SupabaseClient {
 export async function testSupabaseConnection(): Promise<boolean> {
   try {
     connectionStatus = CONNECTION_STATUS.CONNECTING;
-    console.log('🔍 Testing Supabase connection...');
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('🔍 Testing Supabase connection...');
+    }
     const { data, error } = await supabase.from('profiles').select('user_id').limit(1);
     
     if (error) {
       connectionStatus = CONNECTION_STATUS.ERROR;
-      console.error('❌ Supabase connection error:', error);
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.error('❌ Supabase connection error:', error);
+      }
       return false;
     }
     
     connectionStatus = CONNECTION_STATUS.CONNECTED;
-    console.log('✅ Supabase connection successful');
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('✅ Supabase connection successful');
+    }
     return true;
   } catch (err) {
     connectionStatus = CONNECTION_STATUS.ERROR;
-    console.error('💥 Supabase connection failed:', err);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.error('💥 Supabase connection failed:', err);
+    }
     return false;
   }
 }

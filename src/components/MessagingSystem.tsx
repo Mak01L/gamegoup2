@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
-import { debugLog, errorLog, successLog } from '../lib/devUtils';
+import { debugLog, errorLog } from '../lib/devUtils';
 import PinnedPrivateMessageModal from '../modals/PinnedPrivateMessageModal';
 
 interface Friend {
@@ -84,83 +84,8 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     };
   }, [authUser]);
 
-  // Debug function to check profile existence
-  const debugProfileData = async () => {
-    if (!authUser) return;
-    
-    debugLog('Checking profile data for user:', authUser.id);
-    
-    // Check current user's profile
-    const { data: myProfile, error: myError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', authUser.id)
-      .single();
-    
-    console.log('👤 My profile:', myProfile);
-    console.log('❌ My profile error:', myError);
-    
-    // Check all profiles in the table
-    const { data: allProfiles, error: allError } = await supabase
-      .from('profiles')
-      .select('user_id, username, avatar_url')
-      .limit(10);
-    
-    console.log('👥 All profiles (first 10):', allProfiles);
-    console.log('❌ All profiles error:', allError);
-
-    // Check if we have any friendships
-    const { data: friendships, error: friendError } = await supabase
-      .from('friendships')
-      .select('*')
-      .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`);
-    
-    console.log('🤝 My friendships:', friendships);
-    console.log('❌ Friendships error:', friendError);
-
-    // For each friendship, check if the friend has a profile
-    if (friendships && friendships.length > 0) {
-      for (const friendship of friendships) {
-        const friendId = friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
-        console.log(`🔍 Checking profile for friend ID: ${friendId}`);
-        
-        const { data: friendProfile, error: friendProfileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', friendId)
-          .single();
-        
-        console.log(`👤 Profile for ${friendId}:`, friendProfile);
-        console.log(`❌ Profile error for ${friendId}:`, friendProfileError);
-
-        // If no profile exists, try to create one with a basic username
-        if (!friendProfile && friendProfileError?.code === 'PGRST116') {
-          console.log(`⚠️ No profile found for ${friendId}, attempting to create basic profile...`);
-          
-          const basicProfile = {
-            user_id: friendId,
-            username: `User-${friendId.slice(0, 8)}`,
-            avatar_url: '/default-avatar.png',
-            created_at: new Date().toISOString()
-          };
-
-          const { data: createdProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert(basicProfile)
-            .select()
-            .single();
-
-          console.log(`✅ Created profile for ${friendId}:`, createdProfile);
-          console.log(`❌ Create profile error for ${friendId}:`, createError);
-        }
-      }
-    }
-  };
-
   const fetchFriends = async () => {
     if (!authUser) return;
-
-    console.log('🔍 Fetching friends for user:', authUser.id);
 
     try {
       // First, get all friendships where the user is involved
@@ -170,11 +95,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
         .eq('status', 'accepted');
 
-      console.log('📊 Raw friendships data:', friendships);
-      console.log('❌ Friendships error:', friendshipsError);
-
       if (friendshipsError || !friendships || friendships.length === 0) {
-        console.log('❌ No friendships found or error occurred');
         setFriends([]);
         return;
       }
@@ -184,25 +105,16 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         return friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
       });
 
-      console.log('👥 Friend IDs to fetch:', friendIds);
-
       // Batch fetch all friend profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('user_id, username, avatar_url')
         .in('user_id', friendIds);
 
-      console.log('👤 Fetched profiles:', profiles);
-      console.log('❌ Profiles error:', profilesError);
-
       // Map friendships with their corresponding profiles
       const friendsWithProfiles = friendships.map(friendship => {
         const friendId = friendship.user1_id === authUser.id ? friendship.user2_id : friendship.user1_id;
         const friendProfile = profiles?.find(p => p.user_id === friendId);
-        
-        console.log(`🔗 Mapping friendship ${friendship.id}:`);
-        console.log(`   Friend ID: ${friendId}`);
-        console.log(`   Found profile:`, friendProfile);
 
         return {
           ...friendship,
@@ -214,11 +126,9 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         };
       });
 
-      console.log('✅ Final friends with profiles:', friendsWithProfiles);
       setFriends(friendsWithProfiles);
 
     } catch (error) {
-      console.error('💥 Exception in fetchFriends:', error);
       setFriends([]);
     }
   };
@@ -226,7 +136,9 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const fetchFriendRequests = async () => {
     if (!authUser) return;
 
-    console.log('Fetching friend requests for user:', authUser.id);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('Fetching friend requests for user:', authUser.id);
+    }
 
     // First get the friend requests
     const { data: requests, error: requestsError } = await supabase
@@ -235,11 +147,15 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       .eq('receiver_id', authUser.id)
       .eq('status', 'pending');
 
-    console.log('Friend requests raw data:', requests);
-    console.log('Friend requests error:', requestsError);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('Friend requests raw data:', requests);
+      console.log('Friend requests error:', requestsError);
+    }
 
     if (requestsError || !requests) {
-      console.error('Error fetching friend requests:', requestsError);
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.error('Error fetching friend requests:', requestsError);
+      }
       setFriendRequests([]);
       return;
     }
@@ -260,15 +176,19 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       })
     );
 
-    console.log('Friend requests with profiles:', requestsWithProfiles);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('Friend requests with profiles:', requestsWithProfiles);
+    }
     setFriendRequests(requestsWithProfiles);
   };
 
   const fetchMatches = async () => {
     if (!authUser) return;
     
-    console.log('🔍 === FETCHING MATCHES ===');
-    console.log('👤 Current user ID:', authUser.id);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('🔍 === FETCHING MATCHES ===');
+      console.log('👤 Current user ID:', authUser.id);
+    }
     
     // First, get the raw matches without trying to join profiles
     const { data: rawMatches, error } = await supabase
@@ -277,24 +197,32 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
       .eq('is_active', true);
     
-    console.log('📊 Raw matches query result:');
-    console.log('   Data:', rawMatches);
-    console.log('   Error:', error);
-    console.log('   Number of matches found:', rawMatches?.length || 0);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('📊 Raw matches query result:');
+      console.log('   Data:', rawMatches);
+      console.log('   Error:', error);
+      console.log('   Number of matches found:', rawMatches?.length || 0);
+    }
     
     if (error) {
-      console.error('❌ Error fetching matches:', error);
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.error('❌ Error fetching matches:', error);
+      }
       setMatches([]);
       return;
     }
 
     if (!rawMatches || rawMatches.length === 0) {
-      console.log('ℹ️ No matches found - setting empty matches array');
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('ℹ️ No matches found - setting empty matches array');
+      }
       setMatches([]);
       return;
     }
 
-    console.log('✅ Found', rawMatches.length, 'matches, processing...');
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('✅ Found', rawMatches.length, 'matches, processing...');
+    }
 
     // Now get the profiles for each match separately
     const processedMatches = [];
@@ -303,14 +231,16 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       const isUser1 = match.user1_id === authUser.id;
       const otherUserId = isUser1 ? match.user2_id : match.user1_id;
       
-      console.log('🔗 Processing match:', {
-        matchId: match.id,
-        user1_id: match.user1_id,
-        user2_id: match.user2_id,
-        currentUserId: authUser.id,
-        isUser1,
-        otherUserId
-      });
+      if (import.meta.env.VITE_DEBUG === 'true') {
+        console.log('🔗 Processing match:', {
+          matchId: match.id,
+          user1_id: match.user1_id,
+          user2_id: match.user2_id,
+          currentUserId: authUser.id,
+          isUser1,
+          otherUserId
+        });
+      }
       
       // Fetch the other user's profile
       const { data: otherUserProfile, error: profileError } = await supabase
@@ -320,7 +250,9 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .single();
       
       if (profileError) {
-        console.error('Error fetching profile for user:', otherUserId, profileError);
+        if (import.meta.env.VITE_DEBUG === 'true') {
+          console.error('Error fetching profile for user:', otherUserId, profileError);
+        }
         continue; // Skip this match if we can't get the profile
       }
       
@@ -335,7 +267,9 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       });
     }
     
-    console.log('✅ Final processed matches:', processedMatches);
+    if (import.meta.env.VITE_DEBUG === 'true') {
+      console.log('✅ Final processed matches:', processedMatches);
+    }
     setMatches(processedMatches);
   };
 
