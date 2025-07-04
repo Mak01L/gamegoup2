@@ -1,16 +1,16 @@
-# 📧 Configuración de Emails para GameGoUp
+# 📧 Email Configuration for GameGoUp
 
-Los reportes de feedback se enviarán automáticamente a **mak01live@protonmail.com**
+Feedback reports will be automatically sent to **mak01live@protonmail.com**
 
-## 🚀 OPCIÓN 1: EmailJS (Más Fácil - RECOMENDADA)
+## 🚀 OPTION 1: EmailJS (Easier - RECOMMENDED)
 
-### Paso 1: Crear cuenta EmailJS
-1. Ve a [emailjs.com](https://www.emailjs.com/)
-2. Crea cuenta gratuita
-3. Crea un servicio de email (Gmail, Outlook, etc.)
+### Step 1: Create EmailJS account
+1. Go to [emailjs.com](https://www.emailjs.com/)
+2. Create free account
+3. Create an email service (Gmail, Outlook, etc.)
 
-### Paso 2: Configurar template
-Crea un template con estos campos:
+### Step 2: Configure template
+Create a template with these fields:
 ```
 To: {{to_email}}
 Subject: {{subject}}
@@ -18,74 +18,74 @@ From: {{from_name}}
 Message: {{message}}
 ```
 
-### Paso 3: Obtener credenciales
+### Step 3: Get credentials
 - Service ID: `service_xxxxxxx`
 - Template ID: `template_xxxxxxx`
 - Public Key: `user_xxxxxxxxxxxxxxx`
 
-### Paso 4: Actualizar código
-En `src/lib/emailService.ts`, reemplaza:
+### Step 4: Update code
+In `src/lib/emailService.ts`, replace:
 ```typescript
 const EMAILJS_SERVICE_ID = 'tu_service_id';
 const EMAILJS_TEMPLATE_ID = 'tu_template_id';
 const EMAILJS_PUBLIC_KEY = 'tu_public_key';
 ```
 
-## 🔗 OPCIÓN 2: Zapier Webhook (Alternativa)
+## 🔗 OPTION 2: Zapier Webhook (Alternative)
 
-### Paso 1: Crear Zap en Zapier
-1. Ve a [zapier.com](https://zapier.com/)
-2. Crea nuevo Zap
+### Step 1: Create Zap in Zapier
+1. Go to [zapier.com](https://zapier.com/)
+2. Create new Zap
 3. Trigger: Webhook - Catch Hook
 4. Action: Email - Send Outbound Email
 
-### Paso 2: Configurar webhook
-- Copia la URL del webhook
-- En `emailService.ts`, reemplaza `webhookUrl`
+### Step 2: Configure webhook
+- Copy the webhook URL
+- In `emailService.ts`, replace `webhookUrl`
 
-### Paso 3: Configurar email
+### Step 3: Configure email
 - To: `mak01live@protonmail.com`
 - Subject: `{{subject}}`
 - Body: `{{body}}`
 
-## 📋 CONFIGURACIÓN EN SUPABASE
+## 📋 SUPABASE CONFIGURATION
 
-### Ejecutar SQLs:
-1. `feedback_system.sql` (ya ejecutado)
-2. `email_webhook_setup.sql` (nuevo - ejecutar este)
+### Execute SQLs:
+1. `feedback_system.sql` (already executed)
+2. `email_webhook_setup.sql` (new - execute this one)
 
-### Verificar tablas creadas:
+### Verify created tables:
 - ✅ `user_feedback`
 - ✅ `admin_notifications`
 - ✅ `email_queue`
 
-## 🧪 PROBAR EL SISTEMA
+## 🧪 TEST THE SYSTEM
 
-### 1. Enviar feedback de prueba:
-- Ve a tu app GameGoUp
-- Click en botón "🐛 Feedback"
-- Envía un reporte de prueba
+### 1. Send test feedback:
+- Go to your GameGoUp app
+- Click "🐛 Feedback" button
+- Send a test report
 
-### 2. Verificar en Supabase:
+### 2. Verify in Supabase:
 ```sql
--- Ver feedback recibido
+-- View received feedback
 SELECT * FROM user_feedback ORDER BY created_at DESC LIMIT 5;
 
--- Ver emails en cola
+-- View emails in queue
 SELECT * FROM email_queue ORDER BY created_at DESC LIMIT 5;
 
--- Ver notificaciones
+-- View notifications
 SELECT * FROM admin_notifications ORDER BY created_at DESC LIMIT 5;
 ```
 
-### 3. Verificar email:
-- Revisa tu bandeja: `mak01live@protonmail.com`
-- Busca emails de GameGoUp
+### 3. Verify email:
+- Check your inbox: `mak01live@protonmail.com`
+- Look for emails from GameGoUp
 
-## 🔧 FORMATO DEL EMAIL QUE RECIBIRÁS:
+## 🔧 EMAIL FORMAT YOU'LL RECEIVE:
 
 ```
-Subject: [GameGoUp] 🐛 Bug Report - Título del reporte
+Subject: [GameGoUp] 🐛 Bug Report - Report Title
 
 Body:
 New feedback received on GameGoUp!
@@ -94,16 +94,16 @@ New feedback received on GameGoUp!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🏷️  Type: 🐛 BUG
 ⚡ Priority: 🚨 CRITICAL
-👤 User: usuario@email.com
+👤 User: user@email.com
 📅 Date: 2024-01-15 14:30:25 UTC
-🆔 ID: uuid-del-reporte
+🆔 ID: report-uuid
 
 📝 TITLE:
-El botón de join no funciona
+The join button doesn't work
 
 📄 DESCRIPTION:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Cuando hago click en join, no pasa nada...
+When I click join, nothing happens...
 
 🔗 QUICK ACTIONS:
 • View in Supabase: https://supabase.com/dashboard/...
@@ -113,24 +113,24 @@ Cuando hago click en join, no pasa nada...
 GameGoUp Feedback System 🎮
 ```
 
-## ⚡ ACTIVAR EMAILS AUTOMÁTICOS
+## ⚡ ENABLE AUTOMATIC EMAILS
 
-En tu `src/pages/Home.tsx` o `src/App.tsx`, agrega:
+In your `src/pages/Home.tsx` or `src/App.tsx`, add:
 
 ```typescript
 import { startEmailProcessor } from './lib/emailService';
 
-// En useEffect o al iniciar la app
+// In useEffect or when starting the app
 useEffect(() => {
   startEmailProcessor();
 }, []);
 ```
 
-## 🎯 RESULTADO FINAL:
+## 🎯 FINAL RESULT:
 
-✅ **Feedback enviado** → **Email automático** → **mak01live@protonmail.com**
-✅ **Tipos**: Bugs 🐛, Games 🎮, Features ✨, Improvements 🔧
-✅ **Prioridades**: Critical 🚨, High ⚠️, Medium 📋, Low 📝
-✅ **Información completa**: Usuario, fecha, descripción detallada
+✅ **Feedback sent** → **Automatic email** → **mak01live@protonmail.com**
+✅ **Types**: Bugs 🐛, Games 🎮, Features ✨, Improvements 🔧
+✅ **Priorities**: Critical 🚨, High ⚠️, Medium 📋, Low 📝
+✅ **Complete information**: User, date, detailed description
 
-¡Ya tienes todo configurado para recibir feedback automáticamente! 🚀
+You now have everything configured to receive feedback automatically! 🚀

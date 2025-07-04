@@ -260,14 +260,14 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const fetchMatches = async () => {
     if (!authUser) return;
-    // Buscar matches activos donde el usuario es user1 o user2
+    // Search for active matches where user is user1 or user2
     const { data, error } = await supabase
       .from('user_matches')
       .select('id, user1_id, user2_id, matched_at, chat_started, is_active, user1:profiles!user_matches_user1_id_fkey(id,username,avatar_url), user2:profiles!user_matches_user2_id_fkey(id,username,avatar_url)')
       .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
       .eq('is_active', true);
     if (!error && data) {
-      // Filtrar para mostrar el otro usuario
+      // Filter to show the other user
       const filtered = data.map((match: any) => {
         const other = match.user1_id === authUser.id ? match.user2 : match.user1;
         return {
@@ -286,7 +286,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const fetchPrivateMessages = async () => {
     if (!authUser) return;
-    // Obtener todos los amigos aceptados
+    // Get all accepted friends
     const { data: friendsData, error: friendsError } = await supabase
       .from('friendships')
       .select('friend_id')
@@ -298,14 +298,14 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setPrivateMessages([]);
       return;
     }
-    // Buscar conversaciones privadas con amigos
+    // Search for private conversations with friends
     const { data: conversations, error: convError } = await supabase
       .from('private_conversations')
       .select('id, user1_id, user2_id, last_message_at, messages:private_messages(content,created_at,sender_id), user1:profiles!private_conversations_user1_id_fkey(id,username,avatar_url), user2:profiles!private_conversations_user2_id_fkey(id,username,avatar_url)')
       .or(`user1_id.in.(${[authUser.id,...friendIds].join(',')}),user2_id.in.(${[authUser.id,...friendIds].join(',')})`)
       .order('last_message_at', { ascending: false });
     if (!convError && conversations) {
-      // Filtrar solo las conversaciones donde el otro usuario es un amigo
+      // Filter only conversations where the other user is a friend
       const filtered = conversations.filter((conv: any) => {
         const otherId = conv.user1_id === authUser.id ? conv.user2_id : conv.user1_id;
         return friendIds.includes(otherId);
@@ -552,7 +552,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         if (!matchError && reciprocalLike) {
           console.log('🎉 IT\'S A MATCH!');
-          setMessage(`🎉 ¡Es un Match con ${targetUser.username}!`);
+          setMessage(`🎉 It's a Match with ${targetUser.username}!`);
           
           // Create friendship automatically
           const userId1 = authUser.id < targetUser.user_id ? authUser.id : targetUser.user_id;
@@ -979,7 +979,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         />
                         <div>
                           <div className="font-medium text-white">{pm.user.username}</div>
-                          <div className="text-xs text-blue-300">Último mensaje: {pm.last_message ? pm.last_message.content : 'Sin mensajes'}</div>
+                          <div className="text-xs text-blue-300">Last message: {pm.last_message ? pm.last_message.content : 'No messages'}</div>
                         </div>
                       </div>
                       <button
@@ -1021,7 +1021,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       </div>
                       <button
                         onClick={async () => {
-                          // Buscar o crear conversación privada
+                          // Search or create private conversation
                           if (!authUser) return;
                           let conversationId: string | null = null;
                           try {

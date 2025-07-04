@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Crear directorio dist si no existe
+# Create dist directory if it doesn't exist
 mkdir -p dist
 
-# Copiar archivos estáticos
+# Copy static files
 cp -r public/* dist/
 
-echo "Build completado con éxito"
+echo "Build completed successfully"

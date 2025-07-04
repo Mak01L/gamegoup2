@@ -5,10 +5,14 @@ import LoginRegister from './pages/LoginRegister';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import ProtectedRoute from './components/ProtectedRoute';
+import ConnectionStatus from './components/ConnectionStatus';
+// Import connection test in development
+import './lib/connectionTest';
 
 function App() {
   return (
     <Router>
+      <ConnectionStatus />
       <Routes>
         <Route path="/" element={
           <ProtectedRoute>

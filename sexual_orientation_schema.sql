@@ -1,10 +1,10 @@
--- Agregar campo de orientación sexual a la tabla profiles
+-- Add sexual orientation field to profiles table
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS sexual_orientation VARCHAR(30);
 
--- Agregar índice para mejorar performance en búsquedas
+-- Add index to improve search performance
 CREATE INDEX IF NOT EXISTS idx_profiles_sexual_orientation ON profiles(sexual_orientation);
 
--- Actualizar la tabla user_search_filters para incluir orientaciones sexuales
+-- Update user_search_filters table to include sexual orientations
 ALTER TABLE user_search_filters 
 ADD COLUMN IF NOT EXISTS sexual_orientation_preferences TEXT[];

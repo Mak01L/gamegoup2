@@ -1,7 +1,7 @@
--- Verificar y crear perfiles faltantes
--- Este script debe ejecutarse en el SQL Editor de Supabase
+-- Verify and create missing profiles
+-- This script should be executed in Supabase SQL Editor
 
--- Primero, verificar qué usuarios tienen profiles
+-- First, verify which users have profiles
 SELECT 
   au.id as user_id,
   au.email,
@@ -13,7 +13,7 @@ LEFT JOIN public.profiles p ON au.id = p.user_id
 ORDER BY au.created_at DESC
 LIMIT 10;
 
--- Crear perfiles para usuarios que no los tienen
+-- Create profiles for users who don't have them
 INSERT INTO public.profiles (user_id, username, email, avatar_url, created_at)
 SELECT 
   au.id,
@@ -29,6 +29,6 @@ LEFT JOIN public.profiles p ON au.id = p.user_id
 WHERE p.user_id IS NULL
   AND au.email IS NOT NULL;
 
--- Verificar el resultado
+-- Verify the result
 SELECT COUNT(*) as total_profiles FROM public.profiles;
 SELECT COUNT(*) as total_users FROM auth.users;

@@ -1,4 +1,4 @@
--- Tabla de conversaciones privadas
+-- Private conversations table
 CREATE TABLE IF NOT EXISTS private_conversations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user1_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS private_conversations (
   UNIQUE(user1_id, user2_id)
 );
 
--- Tabla de mensajes privados
+-- Private messages table
 CREATE TABLE IF NOT EXISTS private_messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   conversation_id UUID REFERENCES private_conversations(id) ON DELETE CASCADE,
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS private_messages (
   is_deleted BOOLEAN DEFAULT FALSE
 );
 
--- Tabla de archivos adjuntos
+-- Message attachments table
 CREATE TABLE IF NOT EXISTS message_attachments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   message_id UUID REFERENCES private_messages(id) ON DELETE CASCADE,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS message_attachments (
   file_size INTEGER
 );
 
--- Tabla de relaciones de amistad
+-- Friendship relationships table
 CREATE TABLE IF NOT EXISTS friendships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user1_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS friendships (
   notes TEXT
 );
 
--- Tabla de solicitudes de amistad
+-- Friend requests table
 CREATE TABLE IF NOT EXISTS friend_requests (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   sender_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS friend_requests (
   responded_at TIMESTAMP WITH TIME ZONE
 );
 
--- Tabla de estados de usuario
+-- User status table
 CREATE TABLE IF NOT EXISTS user_presence (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   status VARCHAR(20) DEFAULT 'offline' CHECK (status IN ('online', 'away', 'busy', 'invisible', 'offline')),
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS user_presence (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Tabla de invitaciones a salas
+-- Room invitations table
 CREATE TABLE IF NOT EXISTS room_invitations (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   room_id UUID REFERENCES rooms(id) ON DELETE CASCADE,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS room_invitations (
   responded_at TIMESTAMP WITH TIME ZONE
 );
 
--- Tabla de configuración de notificaciones
+-- Notification settings table
 CREATE TABLE IF NOT EXISTS notification_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS notification_settings (
   quiet_hours_end TIME
 );
 
--- Tabla de cola de notificaciones
+-- Notification queue table
 CREATE TABLE IF NOT EXISTS notification_queue (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -161,7 +161,7 @@ CREATE POLICY "Users can send friend requests" ON friend_requests
 CREATE POLICY "Users can update received friend requests" ON friend_requests
   FOR UPDATE USING (auth.uid() = receiver_id);
 
--- Función para actualizar last_message_at en conversaciones
+-- Function to update last_message_at in conversations
 CREATE OR REPLACE FUNCTION update_conversation_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -172,7 +172,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para actualizar timestamp automáticamente
+-- Trigger to automatically update timestamp
 CREATE TRIGGER update_conversation_on_message
   AFTER INSERT ON private_messages
   FOR EACH ROW

@@ -1,4 +1,4 @@
--- Agregar campos adicionales a la tabla profiles existente
+-- Add additional fields to existing profiles table
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS gender VARCHAR(20),
 ADD COLUMN IF NOT EXISTS connection_types TEXT[],
@@ -6,7 +6,7 @@ ADD COLUMN IF NOT EXISTS interests TEXT[],
 ADD COLUMN IF NOT EXISTS conversation_style VARCHAR(50),
 ADD COLUMN IF NOT EXISTS availability_hours TEXT[];
 
--- Tabla de swipes/decisiones de usuarios
+-- User swipes/decisions table
 CREATE TABLE IF NOT EXISTS user_swipes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   swiper_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS user_swipes (
   UNIQUE(swiper_id, swiped_id)
 );
 
--- Tabla de matches entre usuarios
+-- User matches table
 CREATE TABLE IF NOT EXISTS user_matches (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user1_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS user_matches (
   UNIQUE(user1_id, user2_id)
 );
 
--- Tabla de filtros de búsqueda guardados
+-- Saved search filters table
 CREATE TABLE IF NOT EXISTS user_search_filters (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS user_search_filters (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Tabla de presets de filtros
+-- Filter presets table
 CREATE TABLE IF NOT EXISTS user_filter_presets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -92,20 +92,20 @@ CREATE POLICY "Users can manage their search filters" ON user_search_filters
 CREATE POLICY "Users can manage their filter presets" ON user_filter_presets
   FOR ALL USING (auth.uid() = user_id);
 
--- Función para crear match automático cuando hay like mutuo
+-- Function to create automatic match when there's mutual like
 CREATE OR REPLACE FUNCTION create_match_on_mutual_like()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Solo procesar si es un 'like'
+  -- Only process if it's a 'like'
   IF NEW.action = 'like' THEN
-    -- Verificar si el otro usuario ya nos dio like
+    -- Check if the other user already liked us
     IF EXISTS (
       SELECT 1 FROM user_swipes 
       WHERE swiper_id = NEW.swiped_id 
       AND swiped_id = NEW.swiper_id 
       AND action = 'like'
     ) THEN
-      -- Crear el match
+      -- Create the match
       INSERT INTO user_matches (user1_id, user2_id, matched_at, is_active)
       VALUES (
         LEAST(NEW.swiper_id, NEW.swiped_id),
@@ -115,12 +115,12 @@ BEGIN
       )
       ON CONFLICT (user1_id, user2_id) DO NOTHING;
       
-      -- Crear notificaciones para ambos usuarios
+      -- Create notifications for both users
       INSERT INTO notification_queue (user_id, type, title, message, data)
       VALUES 
-        (NEW.swiper_id, 'match', '¡Nuevo Match!', 'Tienes una nueva conexión', 
+        (NEW.swiper_id, 'match', 'New Match!', 'You have a new connection', 
          jsonb_build_object('match_user_id', NEW.swiped_id)),
-        (NEW.swiped_id, 'match', '¡Nuevo Match!', 'Tienes una nueva conexión', 
+        (NEW.swiped_id, 'match', 'New Match!', 'You have a new connection', 
          jsonb_build_object('match_user_id', NEW.swiper_id));
     END IF;
   END IF;
@@ -129,13 +129,13 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para crear matches automáticamente
+-- Trigger to create matches automatically
 CREATE TRIGGER create_match_on_mutual_like_trigger
   AFTER INSERT ON user_swipes
   FOR EACH ROW
   EXECUTE FUNCTION create_match_on_mutual_like();
 
--- Función para actualizar timestamps
+-- Function to update timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -144,7 +144,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger para actualizar updated_at en user_search_filters
+-- Trigger to update updated_at on user_search_filters
 CREATE TRIGGER update_user_search_filters_updated_at
   BEFORE UPDATE ON user_search_filters
   FOR EACH ROW

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from '../context/UserContext';
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { debugLog, errorLog, successLog } from '../lib/devUtils';
 import PinnedPrivateMessageModal from '../modals/PinnedPrivateMessageModal';
 
 interface Friend {
@@ -35,6 +37,7 @@ interface UserToRate {
 
 const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { authUser } = useUser();
+
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'discover' | 'matches' | 'pmessages'>('friends');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -57,23 +60,35 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   useEffect(() => {
     if (authUser) {
-      const runDebugAndFetch = async () => {
-        await debugProfileData(); // Add debug call
+      const fetchData = async () => {
         await fetchFriends();
         await fetchFriendRequests();
         await fetchMatches();
         await fetchPrivateMessages();
         await fetchUsersToRate(); // Add this for the discover tab
       };
-      runDebugAndFetch();
+      fetchData();
     }
+
+    // Listen for refresh matches event
+    const handleRefreshMatches = () => {
+      if (authUser) {
+        fetchMatches();
+      }
+    };
+
+    window.addEventListener('refreshMatches', handleRefreshMatches);
+
+    return () => {
+      window.removeEventListener('refreshMatches', handleRefreshMatches);
+    };
   }, [authUser]);
 
   // Debug function to check profile existence
   const debugProfileData = async () => {
     if (!authUser) return;
     
-    console.log('🔍 DEBUG: Checking profile data...');
+    debugLog('Checking profile data for user:', authUser.id);
     
     // Check current user's profile
     const { data: myProfile, error: myError } = await supabase
@@ -251,28 +266,77 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const fetchMatches = async () => {
     if (!authUser) return;
-    // Search for active matches where the user is user1 or user2
-    const { data, error } = await supabase
+    
+    console.log('🔍 === FETCHING MATCHES ===');
+    console.log('👤 Current user ID:', authUser.id);
+    
+    // First, get the raw matches without trying to join profiles
+    const { data: rawMatches, error } = await supabase
       .from('user_matches')
-      .select('id, user1_id, user2_id, matched_at, chat_started, is_active, user1:profiles!user_matches_user1_id_fkey(id,username,avatar_url), user2:profiles!user_matches_user2_id_fkey(id,username,avatar_url)')
+      .select('id, user1_id, user2_id, matched_at, chat_started, is_active')
       .or(`user1_id.eq.${authUser.id},user2_id.eq.${authUser.id}`)
       .eq('is_active', true);
-    if (!error && data) {
-      // Filter to show the other user
-      const filtered = data.map((match: any) => {
-        const other = match.user1_id === authUser.id ? match.user2 : match.user1;
-        return {
-          id: match.id,
-          user: {
-            id: other.id,
-            username: other.username,
-            avatar_url: other.avatar_url || '/default-avatar.png',
-          },
-          matched_at: match.matched_at,
-        };
-      });
-      setMatches(filtered);
+    
+    console.log('📊 Raw matches query result:');
+    console.log('   Data:', rawMatches);
+    console.log('   Error:', error);
+    console.log('   Number of matches found:', rawMatches?.length || 0);
+    
+    if (error) {
+      console.error('❌ Error fetching matches:', error);
+      setMatches([]);
+      return;
     }
+
+    if (!rawMatches || rawMatches.length === 0) {
+      console.log('ℹ️ No matches found - setting empty matches array');
+      setMatches([]);
+      return;
+    }
+
+    console.log('✅ Found', rawMatches.length, 'matches, processing...');
+
+    // Now get the profiles for each match separately
+    const processedMatches = [];
+    
+    for (const match of rawMatches) {
+      const isUser1 = match.user1_id === authUser.id;
+      const otherUserId = isUser1 ? match.user2_id : match.user1_id;
+      
+      console.log('🔗 Processing match:', {
+        matchId: match.id,
+        user1_id: match.user1_id,
+        user2_id: match.user2_id,
+        currentUserId: authUser.id,
+        isUser1,
+        otherUserId
+      });
+      
+      // Fetch the other user's profile
+      const { data: otherUserProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, username, avatar_url')
+        .eq('user_id', otherUserId)
+        .single();
+      
+      if (profileError) {
+        console.error('Error fetching profile for user:', otherUserId, profileError);
+        continue; // Skip this match if we can't get the profile
+      }
+      
+      processedMatches.push({
+        id: match.id,
+        user: {
+          id: otherUserProfile.user_id,
+          username: otherUserProfile.username || 'Unknown User',
+          avatar_url: otherUserProfile.avatar_url || '/default-avatar.png',
+        },
+        matched_at: match.matched_at,
+      });
+    }
+    
+    console.log('✅ Final processed matches:', processedMatches);
+    setMatches(processedMatches);
   };
 
   const fetchPrivateMessages = async () => {
@@ -594,7 +658,7 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
         if (!matchError && reciprocalLike) {
           console.log('🎉 IT\'S A MATCH!');
-          setMessage(`🎉 ¡Es un Match con ${targetUser.username}!`);
+          setMessage(`🎉 It's a Match with ${targetUser.username}!`);
           
           // Create friendship automatically
           const userId1 = authUser.id < targetUser.user_id ? authUser.id : targetUser.user_id;
@@ -836,13 +900,13 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 {currentUserIndex >= usersToRate.length ? (
                   <div className="text-center text-gray-400 py-8">
                     <div className="text-4xl mb-4">🎉</div>
-                    <p className="text-lg mb-2">¡Has visto a todos!</p>
+                    <p className="text-lg mb-2">You've seen everyone!</p>
                     <p className="text-sm">No hay más personas para evaluar por ahora.</p>
                     <button
                       onClick={fetchUsersToRate}
                       className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                     >
-                      🔄 Actualizar Lista
+                      🔄 Refresh List
                     </button>
                   </div>
                 ) : usersToRate.length === 0 ? (
@@ -876,14 +940,14 @@ const MessagingSystem: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           disabled={loading}
                           className="flex-1 max-w-[120px] py-3 px-4 bg-red-600 text-white rounded-full text-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                         >
-                          👎 No me gusta
+                          👎 Dislike
                         </button>
                         <button
                           onClick={() => handleLikeDislike('like')}
                           disabled={loading}
                           className="flex-1 max-w-[120px] py-3 px-4 bg-green-600 text-white rounded-full text-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105"
                         >
-                          💖 Me gusta
+                          💖 Like
                         </button>
                       </div>
                     </div>

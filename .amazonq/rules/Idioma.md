@@ -1,1 +1,1 @@
-Quiero que programes en ingles pero me hables siempre en español
+I want you to code in English but always communicate with me in Spanish

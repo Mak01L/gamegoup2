@@ -1,33 +1,33 @@
-# Sistema de Like/Dislike - GameGoUp!
+# Like/Dislike System - GameGoUp!
 
-## Descripción
-Se ha implementado un sistema de matching estilo Tinder en lugar del sistema tradicional de "Add Friend". Los usuarios ahora pueden evaluar a otros usuarios con "Me gusta" o "No me gusta" para crear conexiones más orgánicas.
+## Description
+A Tinder-style matching system has been implemented instead of the traditional "Add Friend" system. Users can now evaluate other users with "Like" or "Dislike" to create more organic connections.
 
-## Características Implementadas
+## Implemented Features
 
-### 1. Nuevo Tab "Discover" (Descubrir)
-- Reemplaza el tab "Add Friend"
-- Muestra usuarios uno por uno para evaluar
-- Interfaz estilo tarjeta con avatar y nombre de usuario
+### 1. New "Discover" Tab
+- Replaces the "Add Friend" tab
+- Shows users one by one for evaluation
+- Card-style interface with avatar and username
 
-### 2. Sistema de Like/Dislike
-- **💖 Me gusta**: Indica interés en el usuario
-- **👎 No me gusta**: Pasa al siguiente usuario sin crear conexión
-- Los usuarios evaluados no aparecen nuevamente
+### 2. Like/Dislike System
+- **💖 Like**: Indicates interest in the user
+- **👎 Dislike**: Moves to next user without creating connection
+- Evaluated users don't appear again
 
-### 3. Detección de Matches
-- Cuando dos usuarios se dan "Me gusta" mutuamente, se crea un **Match**
-- Los matches automáticamente se convierten en amistades
-- Notificación visual cuando ocurre un match: "🎉 ¡Es un Match con [username]!"
+### 3. Match Detection
+- When two users mutually "Like" each other, a **Match** is created
+- Matches automatically become friendships
+- Visual notification when a match occurs: "🎉 It's a Match with [username]!"
 
-### 4. Filtros Inteligentes
-- No muestra usuarios ya evaluados
-- No muestra usuarios que ya son amigos
-- No muestra el propio perfil del usuario
+### 4. Smart Filters
+- Doesn't show already evaluated users
+- Doesn't show users who are already friends
+- Doesn't show the user's own profile
 
-## Estructura de Base de Datos
+## Database Structure
 
-### Nueva Tabla: `likes_dislikes`
+### New Table: `likes_dislikes`
 ```sql
 CREATE TABLE likes_dislikes (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -39,8 +39,8 @@ CREATE TABLE likes_dislikes (
 );
 ```
 
-### Vista de Matches: `matches_view`
-Vista que identifica automáticamente los matches mutuos:
+### Matches View: `matches_view`
+View that automatically identifies mutual matches:
 ```sql
 CREATE OR REPLACE VIEW matches_view AS
 SELECT DISTINCT
@@ -57,50 +57,50 @@ JOIN likes_dislikes l2 ON (
 WHERE l1.user_id != l2.user_id;
 ```
 
-## Flujo de Usuario
+## User Flow
 
-1. **Acceder al Sistema**: Usuario entra en Friends & Messages → Tab "✨ Discover"
-2. **Evaluar Usuarios**: Se presenta una tarjeta con un usuario
-3. **Tomar Decisión**: 
-   - Click en "💖 Me gusta" si hay interés
-   - Click en "👎 No me gusta" para pasar al siguiente
-4. **Match Automático**: Si hay reciprocidad, se notifica el match y se crea la amistad
-5. **Continuar**: El sistema avanza automáticamente al siguiente usuario
+1. **Access the System**: User enters Friends & Messages → "✨ Discover" Tab
+2. **Evaluate Users**: A card with a user is presented
+3. **Make Decision**: 
+   - Click "💖 Like" if interested
+   - Click "👎 Dislike" to move to next user
+4. **Automatic Match**: If there's reciprocity, match is notified and friendship is created
+5. **Continue**: System automatically advances to next user
 
-## Estados de la Aplicación
+## Application States
 
-### Estado Inicial
-- Carga todos los usuarios disponibles para evaluar
-- Filtra usuarios ya evaluados y amigos existentes
-- Muestra contador: "Usuario X de Y"
+### Initial State
+- Loads all users available for evaluation
+- Filters already evaluated users and existing friends
+- Shows counter: "User X of Y"
 
-### Estado de Evaluación
-- Botones deshabilitados mientras se procesa la acción
-- Feedback visual durante la carga
-- Mensajes de confirmación
+### Evaluation State
+- Buttons disabled while processing action
+- Visual feedback during loading
+- Confirmation messages
 
-### Estado Final
-- "¡Has visto a todos!" cuando no hay más usuarios
-- Botón "🔄 Actualizar Lista" para recargar
+### Final State
+- "You've seen everyone!" when no more users available
+- "🔄 Refresh List" button to reload
 
-## Ventajas del Nuevo Sistema
+## Advantages of the New System
 
-1. **Más Natural**: Simula apps de dating populares
-2. **Menos Invasivo**: No hay solicitudes de amistad pendientes
-3. **Automático**: Los matches se convierten en amistades instantáneamente
-4. **Eficiente**: Evita la gestión manual de solicitudes
-5. **Gamificado**: Más entretenido que un simple directorio
+1. **More Natural**: Simulates popular dating apps
+2. **Less Invasive**: No pending friend requests
+3. **Automatic**: Matches instantly become friendships
+4. **Efficient**: Avoids manual request management
+5. **Gamified**: More entertaining than a simple directory
 
-## Archivos Modificados
+## Modified Files
 
-- `src/components/MessagingSystem.tsx`: Lógica principal del sistema
-- `likes_dislikes_schema.sql`: Esquema de base de datos
-- Nuevas interfaces TypeScript para `UserToRate`
+- `src/components/MessagingSystem.tsx`: Main system logic
+- `likes_dislikes_schema.sql`: Database schema
+- New TypeScript interfaces for `UserToRate`
 
-## Próximos Pasos Sugeridos
+## Suggested Next Steps
 
-1. Implementar sistema de geolocalización para matches por proximidad
-2. Agregar filtros por edad, intereses, juegos favoritos
-3. Implementar "Super Likes" como feature premium
-4. Agregar animaciones de transición entre usuarios
-5. Sistema de reportes para usuarios inapropiados
+1. Implement geolocation system for proximity-based matches
+2. Add filters by age, interests, favorite games
+3. Implement "Super Likes" as premium feature
+4. Add transition animations between users
+5. Reporting system for inappropriate users

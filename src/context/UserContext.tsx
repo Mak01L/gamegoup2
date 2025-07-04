@@ -25,7 +25,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }, AUTH_CONFIG.LOADING_TIMEOUT);
     
-    // Al montar, intenta restaurar sesión de Supabase
+    // On mount, try to restore Supabase session
     const restoreSession = async () => {
       try {
         console.log('🔄 Restoring session...');
@@ -86,7 +86,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     restoreSession();
     
-    // Suscribirse a cambios de sesión (login/logout cross-tab)
+    // Subscribe to session changes (login/logout cross-tab)
     const { data: listener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event);
       
