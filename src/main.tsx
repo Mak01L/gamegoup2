@@ -2,8 +2,7 @@
 import './lib/errorInterceptionSystem';
 import './lib/reactErrorPatch';
 
-import './styles/tailwind.css';
-import './styles/design-tokens.css';
+import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';

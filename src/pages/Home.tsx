@@ -28,6 +28,10 @@ import Badge from '../components/Badge';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import FloatingActionButton from '../components/FloatingActionButton';
 import MobileNavigation from '../components/MobileNavigation';
+import { useMobileOptimized } from '../hooks/useDevice';
+import { SafeArea } from '../components/MobileBottomNavigation';
+import { MobileCard, MobileButton, MobileGrid } from '../components/MobileOptimizedComponents';
+import { SwipeableCard, PullToRefresh } from '../components/MobileGestures';
 
 interface Room {
   id: string;
@@ -69,6 +73,12 @@ const Home: React.FC = () => {
   const { success, error: showError, ToastContainer } = useToast();
   const { playSound } = useSoundEffects({ enabled: true, volume: 0.2 });
   const isMobile = useIsMobile();
+  const { 
+    isMobile: isMobileDevice, 
+    useBottomNav, 
+    showSidebar,
+    containerClass 
+  } = useMobileOptimized();
 
   // Auto-refresh on mount to show current user counts
   useEffect(() => {
@@ -410,14 +420,18 @@ const Home: React.FC = () => {
     handleApply();
   };
 
+  const handleRefresh = async () => {
+    await handleApply();
+  };
+
   return (
-    <div className="min-h-screen font-inter text-white flex flex-row relative overflow-hidden">
+    <SafeArea className="min-h-screen font-inter text-white flex flex-row relative overflow-hidden">
       <ParallaxBackground speed={0.3}>
         <BackgroundParticles />
       </ParallaxBackground>
       
       {/* Professional sidebar - Hidden on mobile */}
-      {!isMobile && (
+      {showSidebar && (
         <div className="min-w-[90px] max-w-[220px] w-[18vw] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
           <PinnedRoomsSidebar />
           <GoogleAdSense 
@@ -428,90 +442,110 @@ const Home: React.FC = () => {
         </div>
       )}
       
-      {/* Main content */}
-      <div className="flex-1 flex flex-col items-center py-8 relative">
-        {/* User menu and controls top right */}
-        <div className="absolute top-6 right-8 z-10 flex items-center gap-4 animate-slide-in-right">
-          <Tooltip content="Report bugs, request games, or suggest improvements" position="bottom">
-            <Button
-              onClick={() => setShowFeedbackModal(true)}
-              variant="ghost"
-              size="sm"
-              icon={<MessageCircleIcon size={16} />}
-              iconPosition="left"
-              className="bg-transparent hover:bg-white/5 border-white/20 text-white/80 hover:text-white backdrop-blur-sm"
-            >
-              Feedback
-            </Button>
-          </Tooltip>
-          {/* Social media links */}
-          <a
-            href="https://x.com/GameGoUp"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="GameGoUp on Twitter"
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
-              <path d="M22.162 5.656c-.793.352-1.646.59-2.54.698a4.48 4.48 0 0 0 1.963-2.475 8.93 8.93 0 0 1-2.828 1.08A4.466 4.466 0 0 0 11.07 9.03c0 .35.04.69.115 1.016-3.71-.186-7-1.963-9.197-4.664a4.48 4.48 0 0 0-.604 2.247c0 1.55.79 2.92 2 3.724a4.44 4.44 0 0 1-2.022-.56v.057a4.47 4.47 0 0 0 3.58 4.38c-.19.052-.39.08-.6.08-.146 0-.286-.014-.424-.04.287.89 1.12 1.54 2.11 1.56A8.97 8.97 0 0 1 2 19.54a12.67 12.67 0 0 0 6.88 2.02c8.26 0 12.78-6.84 12.78-12.77 0-.19-.01-.38-.02-.57a9.1 9.1 0 0 0 2.22-2.34z" />
-            </svg>
-          </a>
-          <a
-            href="https://www.facebook.com/profile.php?id=61578022196836"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="GameGoUp on Facebook"
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
-              <path d="M22.675 0h-21.35C.595 0 0 .592 0 1.326v21.348C0 23.408.595 24 1.325 24h11.495v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.406 24 24 23.408 24 22.674V1.326C24 .592 23.406 0 22.675 0" />
-            </svg>
-          </a>
-          <UserMenu />
-        </div>
-        
-        {/* Logo */}
-        <div className="text-center mb-6 mt-4">
-          <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
-        </div>
-        
-        {/* Profile completion banner */}
-        <div className="w-full max-w-[540px] mx-auto mb-4">
-          <ProfileCompletionBanner />
-        </div>
-        
-        {/* Search section */}
-        <div className="w-full max-w-[600px] mx-auto mb-6">
-          <SearchBar
-            placeholder="Search rooms, games, regions..."
-            suggestions={searchSuggestions}
-            onSearch={handleSearch}
-            onSuggestionSelect={handleSuggestionSelect}
-            loading={isSearching}
-            className="animate-fade-in-up"
-          />
-        </div>
-
-        {/* Professional filters section */}
-        <div className="w-full max-w-[540px] mx-auto glass-surface rounded-2xl shadow-professional p-7 mb-4 relative border border-primary-500/20">
-          <GoogleAdSense 
-            adSlot="1234567890" 
-            adFormat="horizontal"
-            position="top"
-          />
-          <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={handleCreateRoom}
-              variant="primary"
-              size="lg"
-              animate={true}
-              className="text-lg font-bold"
-            >
-              Create New Room
-            </Button>
+      {/* Main content with mobile optimization */}
+      <PullToRefresh onRefresh={handleRefresh}>
+        <div className="flex-1 flex flex-col items-center relative">
+          {/* Mobile-optimized header */}
+          <div className={`
+            w-full flex items-center justify-between z-10 
+            ${isMobileDevice ? 'p-4 sticky top-0 bg-gray-900/80 backdrop-blur-lg border-b border-gray-800' : 'absolute top-6 right-8'}
+          `}>
+            {isMobileDevice && (
+              <div className="flex items-center gap-3">
+                <img src="/logo.png" alt="GameGoUp" className="h-8" />
+                <span className="font-bold text-lg text-white">GameGoUp</span>
+              </div>
+            )}
+            
+            <div className="flex items-center gap-4">
+              <Tooltip content="Report bugs, request games, or suggest improvements" position="bottom">
+                <MobileButton
+                  onClick={() => setShowFeedbackModal(true)}
+                  variant="outline"
+                  size={isMobileDevice ? 'sm' : 'sm'}
+                  className="bg-transparent hover:bg-white/5 border-white/20 text-white/80 hover:text-white backdrop-blur-sm"
+                >
+                  {isMobileDevice ? '💬' : <><MessageCircleIcon size={16} /> Feedback</>}
+                </MobileButton>
+              </Tooltip>
+              
+              {/* Social media links - hidden on mobile or condensed */}
+              {!isMobileDevice && (
+                <>
+                  <a
+                    href="https://x.com/GameGoUp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="GameGoUp on Twitter"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                      <path d="M22.162 5.656c-.793.352-1.646.59-2.54.698a4.48 4.48 0 0 0 1.963-2.475 8.93 8.93 0 0 1-2.828 1.08A4.466 4.466 0 0 0 11.07 9.03c0 .35.04.69.115 1.016-3.71-.186-7-1.963-9.197-4.664a4.48 4.48 0 0 0-.604 2.247c0 1.55.79 2.92 2 3.724a4.44 4.44 0 0 1-2.022-.56v.057a4.47 4.47 0 0 0 3.58 4.38c-.19.052-.39.08-.6.08-.146 0-.286-.014-.424-.04.287.89 1.12 1.54 2.11 1.56A8.97 8.97 0 0 1 2 19.54a12.67 12.67 0 0 0 6.88 2.02c8.26 0 12.78-6.84 12.78-12.77 0-.19-.01-.38-.02-.57a9.1 9.1 0 0 0 2.22-2.34z" />
+                    </svg>
+                  </a>
+                  <a
+                    href="https://www.facebook.com/profile.php?id=61578022196836"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="GameGoUp on Facebook"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-none border border-purple-400 text-purple-300 hover:bg-purple-800/40 hover:text-white transition-colors shadow focus:outline-none focus:ring-2 focus:ring-purple-500 backdrop-blur-sm"
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                      <path d="M22.675 0h-21.35C.595 0 0 .592 0 1.326v21.348C0 23.408.595 24 1.325 24h11.495v-9.294H9.692v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.797.143v3.24l-1.918.001c-1.504 0-1.797.715-1.797 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.406 24 24 23.408 24 22.674V1.326C24 .592 23.406 0 22.675 0" />
+                    </svg>
+                  </a>
+                </>
+              )}
+              <UserMenu />
+            </div>
           </div>
-        </div>
+          
+          {/* Main content area */}
+          <div className={`w-full ${containerClass} ${isMobileDevice ? 'pt-4' : 'py-8'}`}>
+            
+            {/* Logo - Desktop only, mobile has it in header */}
+            {!isMobileDevice && (
+              <div className="text-center mb-6 mt-4">
+                <img src="/logo.png" alt="GameGoUp Logo" className="h-16 mx-auto drop-shadow-[0_0_12px_rgba(167,139,250,0.5)]" />
+              </div>
+            )}
+        
+            {/* Profile completion banner */}
+            <div className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-[540px] mx-auto mb-4'}`}>
+              <ProfileCompletionBanner />
+            </div>
+            
+            {/* Search section */}
+            <div className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-[600px] mx-auto mb-6'}`}>
+              <SearchBar
+                placeholder="Search rooms, games, regions..."
+                suggestions={searchSuggestions}
+                onSearch={handleSearch}
+                onSuggestionSelect={handleSuggestionSelect}
+                loading={isSearching}
+                className="animate-fade-in-up"
+              />
+            </div>
+
+            {/* Professional filters section */}
+            <MobileCard className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-[540px] mx-auto mb-4'}`}>
+              <GoogleAdSense 
+                adSlot="1234567890" 
+                adFormat="horizontal"
+                position="top"
+              />
+              <Filters values={filters} onChange={setFilters} onApply={handleApply} onClear={handleClear} />
+              <div className="flex justify-end mt-4">
+                <MobileButton
+                  onClick={handleCreateRoom}
+                  variant="primary"
+                  size="lg"
+                  className="text-lg font-bold"
+                >
+                  Create New Room
+                </MobileButton>
+              </div>
+            </MobileCard>
         
         {/* Room search results */}
         <div className="w-full max-w-[900px] mx-auto">
@@ -645,20 +679,22 @@ const Home: React.FC = () => {
             onClose={() => setShowFeedbackModal(false)}
           />
         )}
-      </div>
+        </div>
+        </div>
+      </PullToRefresh>
       
       <Footer />
       
-      {/* Mobile FAB */}
-      {isMobile && (
+      {/* Mobile FAB - only show when not using bottom nav */}
+      {isMobile && !useBottomNav && (
         <FloatingActionButton
           onClick={handleCreateRoom}
           className="animate-scale-in"
         />
       )}
 
-      {/* Mobile Navigation */}
-      {isMobile && (
+      {/* Mobile Navigation - legacy, replaced by bottom nav */}
+      {isMobile && !useBottomNav && (
         <MobileNavigation onCreateRoom={handleCreateRoom} />
       )}
 
@@ -667,7 +703,7 @@ const Home: React.FC = () => {
       
       {/* Confetti celebration */}
       <Confetti active={showConfetti} />
-    </div>
+    </SafeArea>
   );
 };
 
