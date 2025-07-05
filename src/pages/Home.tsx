@@ -213,16 +213,29 @@ const Home: React.FC = () => {
         schema: 'public',
         // Query de fallback - mantiene funcionalidad sin tiempo real
         fallbackQuery: async () => {
-          const { data } = await supabase
+          const { data: rooms } = await supabase
             .from('rooms')
-            .select(`
-              *,
-              user_count:room_users(count),
-              user_previews:room_users(user:profiles(username, avatar_url))
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
           
-          return data || [];
+          if (!rooms) return [];
+          
+          // Obtener user_count para cada room de manera segura
+          const roomsWithUserCount = await Promise.all(
+            rooms.map(async (room) => {
+              const { count } = await supabase
+                .from('room_users')
+                .select('*', { count: 'exact', head: true })
+                .eq('room_id', room.id);
+              
+              return {
+                ...room,
+                user_count: count || 0
+              };
+            })
+          );
+          
+          return roomsWithUserCount;
         }
       }
     );

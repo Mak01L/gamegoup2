@@ -47,7 +47,10 @@ class ErrorInterceptionSystem {
       'adsbygoogle.push()',
       'All \'ins\' elements in the DOM with class=adsbygoogle',
       'duplicate adsbygoogle',
-      'adsbygoogle is already defined'
+      'adsbygoogle is already defined',
+      'Failed to load resource: net::ERR_BLOCKED_BY_CLIENT',
+      'pagead2.googlesyndication.com',
+      'ERR_BLOCKED_BY_CLIENT'
     ];
 
     return adSenseErrors.some(error => message.includes(error));
@@ -78,7 +81,11 @@ class ErrorInterceptionSystem {
       'Channel error: subscription failed',
       'Max retry attempts reached',
       'Connection timeout',
-      'Socket closed unexpectedly'
+      'Socket closed unexpectedly',
+      'WebSocket connection to \'wss://',
+      'failed:',
+      'WebSocket is closed before the connection is established',
+      'supabase.co/realtime/v1/websocket'
     ];
 
     // NO silenciar errores críticos que indican problemas reales
@@ -96,6 +103,18 @@ class ErrorInterceptionSystem {
     }
 
     return nonCriticalWebSocketErrors.some(error => message.includes(error));
+  }
+
+  private shouldSilenceReactError(message: string): boolean {
+    if (!this.config.enableDOMErrorSilencing) return false;
+    
+    const nonCriticalReactErrors = [
+      'Minified React error #31',
+      'object with keys {count}',
+      'reactjs.org/docs/error-decoder.html'
+    ];
+
+    return nonCriticalReactErrors.some(error => message.includes(error));
   }
 
   private logSilencedError(type: string, message: string): void {
@@ -126,6 +145,11 @@ class ErrorInterceptionSystem {
         return;
       }
       
+      if (this.shouldSilenceReactError(message)) {
+        this.logSilencedError('REACT', message);
+        return;
+      }
+      
       // Otros errores se muestran normalmente
       this.originalConsoleError.apply(console, args);
     };
@@ -147,7 +171,8 @@ class ErrorInterceptionSystem {
       if (typeof message === 'string') {
         if (this.shouldSilenceAdSenseError(message) || 
             this.shouldSilenceDOMError(message) ||
-            this.shouldSilenceWebSocketError(message)) {
+            this.shouldSilenceWebSocketError(message) ||
+            this.shouldSilenceReactError(message)) {
           this.logSilencedError('WINDOW', message);
           return true; // Prevenir que se muestre
         }
@@ -160,6 +185,22 @@ class ErrorInterceptionSystem {
       
       return false;
     };
+
+    // Interceptar errores de recursos (como AdSense bloqueado por adblocker)
+    window.addEventListener('error', (event) => {
+      if (event.target !== window) {
+        const element = event.target as HTMLElement;
+        const src = element.getAttribute?.('src') || '';
+        
+        if (this.shouldSilenceAdSenseError(src) || 
+            src.includes('pagead2.googlesyndication.com')) {
+          this.logSilencedError('RESOURCE', `Blocked resource: ${src}`);
+          event.preventDefault();
+          event.stopPropagation();
+          return false;
+        }
+      }
+    }, true);
 
     this.intercepted = true;
     
