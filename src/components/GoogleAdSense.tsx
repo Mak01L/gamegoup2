@@ -8,7 +8,7 @@ interface GoogleAdSenseProps {
   adClient?: string;
   style?: React.CSSProperties;
   className?: string;
-  position?: 'top' | 'sidebar';
+  position?: string;
 }
 
 const GoogleAdSense: React.FC<GoogleAdSenseProps> = ({
@@ -26,9 +26,10 @@ const GoogleAdSense: React.FC<GoogleAdSenseProps> = ({
     enabled: true
   });
 
+  const isSidebar = position?.includes('sidebar');
   const containerStyle = {
-    width: position === 'sidebar' ? '100%' : '100%',
-    minHeight: position === 'sidebar' ? 120 : 90,
+    width: '100%',
+    minHeight: isSidebar ? 120 : 90,
     maxHeight: 160,
     background: isLoaded 
       ? 'transparent' 
@@ -38,7 +39,7 @@ const GoogleAdSense: React.FC<GoogleAdSenseProps> = ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: position === 'sidebar' ? '18px 0' : '0 0 18px 0',
+    margin: isSidebar ? '18px 0' : '0 0 18px 0',
     color: isLoaded ? 'transparent' : '#A78BFA',
     fontWeight: 700,
     fontSize: 18,
