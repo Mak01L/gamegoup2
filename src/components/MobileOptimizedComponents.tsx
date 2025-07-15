@@ -41,6 +41,9 @@ interface MobileButtonProps {
   fullWidth?: boolean;
   className?: string;
   disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
+  as?: React.ElementType;
+  to?: string;
 }
 
 export const MobileButton: React.FC<MobileButtonProps> = ({
@@ -50,7 +53,10 @@ export const MobileButton: React.FC<MobileButtonProps> = ({
   size = 'md',
   fullWidth = false,
   className = '',
-  disabled = false
+  disabled = false,
+  type = 'button',
+  as: Component = 'button',
+  ...props
 }) => {
   const { isMobile, buttonSize } = useMobileOptimized();
   
@@ -63,7 +69,7 @@ export const MobileButton: React.FC<MobileButtonProps> = ({
                       'border-2 border-gray-600 hover:border-gray-500 text-gray-300 hover:text-white bg-transparent';
   
   return (
-    <button
+    <Component
       className={`
         ${sizeClass}
         ${variantClass}
@@ -76,9 +82,11 @@ export const MobileButton: React.FC<MobileButtonProps> = ({
       `}
       onClick={onClick}
       disabled={disabled}
+      type={Component === 'button' ? type : undefined}
+      {...props}
     >
       {children}
-    </button>
+    </Component>
   );
 };
 

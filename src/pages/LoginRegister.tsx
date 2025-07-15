@@ -45,11 +45,11 @@ const LoginRegister: React.FC = () => {
     setSuccess(null);
     setLoading(true);
     
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: number | null = null;
     
     try {
       // Safety timeout to prevent infinite loading
-      timeoutId = setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         setLoading(false);
         setError('Login timeout. Please try again.');
       }, 10000);
@@ -92,7 +92,7 @@ const LoginRegister: React.FC = () => {
       console.error('Login error:', error);
       setError('An unexpected error occurred');
     } finally {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   };
