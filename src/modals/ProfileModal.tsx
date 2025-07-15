@@ -334,27 +334,24 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         </div>
         {/* Profile fields */}
         <div className="flex flex-col gap-3">
-          {/* Username field - ALWAYS show when creating profile */}
-          {isSelf && (
-            <div className="bg-purple-900/30 p-3 rounded-lg border border-purple-500/50">
-              <label className="block text-sm text-purple-200 mb-2 font-semibold" htmlFor="username">Username * (Required)</label>
-              <input 
-                id="username" 
-                type="text" 
-                className="w-full px-4 py-3 rounded-lg bg-[#221b3a] border-2 border-purple-600 text-white text-lg font-medium focus:border-purple-400 focus:outline-none" 
-                value={username === 'Profile not created' || username === 'New User' || !username ? '' : username} 
-                onChange={e => setUsername(e.target.value)} 
-                placeholder="Enter your unique username" 
-                title="Username" 
-                maxLength={30}
-                required
-                autoFocus
-                disabled={!editMode && username && username !== 'Profile not created' && username !== 'New User'}
-              />
-              <div className="text-xs text-purple-300 text-right mt-1">{(username === 'Profile not created' || username === 'New User' || !username ? 0 : username.length)}/30</div>
-              <div className="text-xs text-purple-400 mt-1">This will be your display name in the app</div>
-            </div>
-          )}
+          {/* Username field - ALWAYS show when self */}
+          <div className="bg-purple-900/30 p-3 rounded-lg border border-purple-500/50">
+            <label className="block text-sm text-purple-200 mb-2 font-semibold" htmlFor="username">Username * (Required)</label>
+            <input 
+              id="username" 
+              type="text" 
+              className="w-full px-4 py-3 rounded-lg bg-[#221b3a] border-2 border-purple-600 text-white text-lg font-medium focus:border-purple-400 focus:outline-none" 
+              value={username === 'Profile not created' || username === 'New User' || !username ? '' : username} 
+              onChange={e => setUsername(e.target.value)} 
+              placeholder="Enter your unique username" 
+              title="Username" 
+              maxLength={30}
+              required
+              autoFocus
+            />
+            <div className="text-xs text-purple-300 text-right mt-1">{(username === 'Profile not created' || username === 'New User' || !username ? 0 : username.length)}/30</div>
+            <div className="text-xs text-purple-400 mt-1">This will be your display name in the app</div>
+          </div>
           
           <div className="flex gap-3">
             <div className="flex-1">
