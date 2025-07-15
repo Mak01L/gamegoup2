@@ -1,4 +1,6 @@
 import React from 'react';
+import { useMobileOptimized } from '../hooks/useDevice';
+import { MobileCard, MobileButton, MobileGrid } from '../components/MobileOptimizedComponents';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Users, Globe, Shield, Zap, Star, GamepadIcon, MessageCircleIcon } from 'lucide-react';
 import GoogleAdSense from '../components/GoogleAdSense';
@@ -51,8 +53,9 @@ const PublicLanding: React.FC = () => {
     }
   ];
 
+  const { isMobile, containerClass, gridCols } = useMobileOptimized();
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className={`min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white ${containerClass}`}>
       {/* Header */}
       <header className="bg-gray-900/80 backdrop-blur-lg border-b border-gray-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -89,24 +92,18 @@ const PublicLanding: React.FC = () => {
             GameGoUp brings together players from every game, region, and skill level.
           </p>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Link 
-              to="/login"
-              className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-lg font-bold text-lg transition-all transform hover:scale-105 flex items-center justify-center"
-            >
+          <MobileGrid className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+            <MobileButton as={Link} to="/login" variant="primary" size={isMobile ? 'lg' : 'md'} className="font-bold flex items-center justify-center">
               Start Gaming Together
               <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-            <Link 
-              to="/how-it-works"
-              className="border-2 border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white px-8 py-4 rounded-lg font-bold text-lg transition-all"
-            >
+            </MobileButton>
+            <MobileButton as={Link} to="/how-it-works" variant="outline" size={isMobile ? 'lg' : 'md'} className="font-bold">
               How It Works
-            </Link>
-          </div>
+            </MobileButton>
+          </MobileGrid>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <MobileGrid className="grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
               <div className="text-3xl font-bold text-blue-400">10,000+</div>
               <div className="text-gray-400">Active Gamers</div>
@@ -119,7 +116,7 @@ const PublicLanding: React.FC = () => {
               <div className="text-3xl font-bold text-purple-400">50+</div>
               <div className="text-gray-400">Supported Games</div>
             </div>
-          </div>
+          </MobileGrid>
         </div>
       </section>
 
@@ -136,15 +133,15 @@ const PublicLanding: React.FC = () => {
       <section className="px-4 sm:px-6 lg:px-8 py-20 bg-gray-800/50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16">Why Choose GameGoUp?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <MobileGrid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="bg-gray-900/50 p-6 rounded-xl border border-gray-700 hover:border-gray-600 transition-all">
+              <MobileCard key={index} className="bg-gray-900/50 p-6 border border-gray-700 hover:border-gray-600 transition-all">
                 <div className="mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
                 <p className="text-gray-400">{feature.description}</p>
-              </div>
+              </MobileCard>
             ))}
-          </div>
+          </MobileGrid>
         </div>
       </section>
 
@@ -156,13 +153,13 @@ const PublicLanding: React.FC = () => {
             Find players for the most popular games across all platforms. From competitive esports 
             titles to casual mobile games, our community plays everything.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+          <MobileGrid className="grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
             {popularGames.map((game, index) => (
               <div key={index} className="bg-gray-800 p-4 rounded-lg text-center hover:bg-gray-700 transition-colors">
                 <span className="text-sm font-medium">{game}</span>
               </div>
             ))}
-          </div>
+          </MobileGrid>
           <div className="text-center mt-8">
             <Link 
               to="/games" 

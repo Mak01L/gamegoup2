@@ -430,25 +430,20 @@ const Home: React.FC = () => {
         <BackgroundParticles />
       </ParallaxBackground>
       
-      {/* Professional sidebar - Hidden on mobile */}
+      {/* Compact sidebar - Hidden on mobile */}
       {showSidebar && (
-        <div className="min-w-[90px] max-w-[220px] w-[18vw] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
+        <div className="w-[160px] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
           <PinnedRoomsSidebar />
-          <GoogleAdSense 
-            adSlot="8765432109" 
-            adFormat="vertical"
-            position="sidebar"
-          />
         </div>
       )}
       
       {/* Main content with mobile optimization */}
       <PullToRefresh onRefresh={handleRefresh}>
-        <div className="flex-1 flex flex-col items-center relative">
+        <div className="flex-1 flex flex-col items-center relative max-w-full">
           {/* Mobile-optimized header */}
           <div className={`
             w-full flex items-center justify-between z-10 
-            ${isMobileDevice ? 'p-4 sticky top-0 bg-gray-900/80 backdrop-blur-lg border-b border-gray-800' : 'absolute top-6 right-8'}
+            ${isMobileDevice ? 'p-4 sticky top-0 bg-gray-900/80 backdrop-blur-lg border-b border-gray-800' : 'absolute top-6 inset-x-6'}
           `}>
             {isMobileDevice && (
               <div className="flex items-center gap-3">
@@ -457,7 +452,7 @@ const Home: React.FC = () => {
               </div>
             )}
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
               <Tooltip content="Report bugs, request games, or suggest improvements" position="bottom">
                 <MobileButton
                   onClick={() => setShowFeedbackModal(true)}
@@ -501,7 +496,7 @@ const Home: React.FC = () => {
           </div>
           
           {/* Main content area */}
-          <div className={`w-full ${containerClass} ${isMobileDevice ? 'pt-4' : 'py-8'}`}>
+          <div className={`w-full max-w-7xl mx-auto px-6 ${isMobileDevice ? 'pt-4' : 'py-8'}`}>
             
             {/* Logo - Desktop only, mobile has it in header */}
             {!isMobileDevice && (
@@ -516,7 +511,7 @@ const Home: React.FC = () => {
             </div>
             
             {/* Search section */}
-            <div className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-[600px] mx-auto mb-6'}`}>
+            <div className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-4xl mx-auto mb-6'}`}>
               <SearchBar
                 placeholder="Search rooms, games, regions..."
                 suggestions={searchSuggestions}
@@ -528,7 +523,7 @@ const Home: React.FC = () => {
             </div>
 
             {/* Professional filters section */}
-            <MobileCard className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-[540px] mx-auto mb-4'}`}>
+            <MobileCard className={`w-full ${isMobileDevice ? 'mb-4' : 'max-w-6xl mx-auto mb-4'}`}>
               <GoogleAdSense 
                 adSlot="1234567890" 
                 adFormat="horizontal"
@@ -548,7 +543,7 @@ const Home: React.FC = () => {
             </MobileCard>
         
         {/* Room search results */}
-        <div className="w-full max-w-[900px] mx-auto">
+        <div className="w-full max-w-7xl mx-auto">
           {loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -582,7 +577,7 @@ const Home: React.FC = () => {
           )}
           
           {!loading && rooms.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {rooms.map((room: Room, index) => (
               <div
                 key={room.id}
