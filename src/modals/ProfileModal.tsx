@@ -107,7 +107,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
             // For self, enable edit mode to create profile
             setUsername('');
             setEditMode(true);
-            setAvatarUrl('/default-avatar.png');
+            setAvatarUrl('/avatars/avatar1.png');
             setBio('');
             setError('');
           } else {
@@ -328,28 +328,31 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
               ))}
             </div>
           )}
-          <div className="mt-3 text-2xl font-bold text-purple-200">{username}</div>
+          <div className="mt-3 text-2xl font-bold text-purple-200">{username || 'New User'}</div>
           <div className="text-sm text-purple-400">{email}</div>
           <div className="text-xs text-gray-400 mt-1">Member since {createdAt ? new Date(createdAt).toLocaleDateString() : ''}</div>
         </div>
         {/* Profile fields */}
         <div className="flex flex-col gap-3">
-          {/* Username field - show when editing or no profile exists */}
-          {isSelf && (editMode || !username || username === 'Profile not created') && (
-            <div>
-              <label className="block text-xs text-purple-300 mb-1" htmlFor="username">Username *</label>
+          {/* Username field - ALWAYS show when creating profile */}
+          {isSelf && (
+            <div className="bg-purple-900/30 p-3 rounded-lg border border-purple-500/50">
+              <label className="block text-sm text-purple-200 mb-2 font-semibold" htmlFor="username">Username * (Required)</label>
               <input 
                 id="username" 
                 type="text" 
-                className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" 
-                value={username === 'Profile not created' ? '' : username} 
+                className="w-full px-4 py-3 rounded-lg bg-[#221b3a] border-2 border-purple-600 text-white text-lg font-medium focus:border-purple-400 focus:outline-none" 
+                value={username === 'Profile not created' || username === 'New User' || !username ? '' : username} 
                 onChange={e => setUsername(e.target.value)} 
-                placeholder="Choose a unique username" 
+                placeholder="Enter your unique username" 
                 title="Username" 
                 maxLength={30}
                 required
+                autoFocus
+                disabled={!editMode && username && username !== 'Profile not created' && username !== 'New User'}
               />
-              <div className="text-xs text-gray-400 text-right">{(username === 'Profile not created' ? 0 : username.length)}/30</div>
+              <div className="text-xs text-purple-300 text-right mt-1">{(username === 'Profile not created' || username === 'New User' || !username ? 0 : username.length)}/30</div>
+              <div className="text-xs text-purple-400 mt-1">This will be your display name in the app</div>
             </div>
           )}
           
