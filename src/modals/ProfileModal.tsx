@@ -103,10 +103,20 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         // If profile doesn't exist, show placeholder indicating no profile
         if (error.code === 'PGRST116') {
           console.log('No profile found for user:', id);
-          setUsername('Profile not created');
-          setAvatarUrl('/default-avatar.png');
-          setBio('This user has not created a profile yet.');
-          setError('This user has not created a profile yet.');
+          if (isSelf) {
+            // For self, enable edit mode to create profile
+            setUsername('');
+            setEditMode(true);
+            setAvatarUrl('/default-avatar.png');
+            setBio('');
+            setError('');
+          } else {
+            // For others, show profile not created message
+            setUsername('Profile not created');
+            setAvatarUrl('/default-avatar.png');
+            setBio('This user has not created a profile yet.');
+            setError('This user has not created a profile yet.');
+          }
         } else {
           setError('Error loading profile: ' + error.message);
         }
@@ -160,10 +170,31 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
     setLoading(true);
     
     try {
-      // Prepare all data for saving (excluding email as it's not in profiles table)
+      const finalUsername = username || authUser.email?.split('@')[0] || 'User';
+      
+      // Check if username is already taken by another user
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('username', finalUsername)
+        .neq('user_id', authUser.id)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking username:', checkError);
+        setError('Error validating username');
+        return;
+      }
+      
+      if (existingUser) {
+        setError(`Username "${finalUsername}" is already taken. Please choose a different username.`);
+        return;
+      }
+      
+      // Prepare all data for saving
       const profileData = {
         user_id: authUser.id,
-        username: username || authUser.email?.split('@')[0] || 'User',
+        username: finalUsername,
         avatar_url: avatarUrl || null,
         bio: bio || null,
         birthdate: birthdate || null,
@@ -192,7 +223,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
       
       if (updateError) {
         console.error('Profile save error:', updateError);
-        setError(`Error saving profile: ${updateError.message}`);
+        if (updateError.message.includes('duplicate key value violates unique constraint')) {
+          setError(`Username "${finalUsername}" is already taken. Please choose a different username.`);
+        } else {
+          setError(`Error saving profile: ${updateError.message}`);
+        }
       } else {
         console.log('Profile saved successfully:', savedData);
         setSuccess('Profile saved successfully!');
@@ -299,6 +334,25 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         </div>
         {/* Profile fields */}
         <div className="flex flex-col gap-3">
+          {/* Username field - show when editing or no profile exists */}
+          {isSelf && (editMode || !username || username === 'Profile not created') && (
+            <div>
+              <label className="block text-xs text-purple-300 mb-1" htmlFor="username">Username *</label>
+              <input 
+                id="username" 
+                type="text" 
+                className="w-full px-3 py-2 rounded bg-[#221b3a] border border-purple-700 text-white" 
+                value={username === 'Profile not created' ? '' : username} 
+                onChange={e => setUsername(e.target.value)} 
+                placeholder="Choose a unique username" 
+                title="Username" 
+                maxLength={30}
+                required
+              />
+              <div className="text-xs text-gray-400 text-right">{(username === 'Profile not created' ? 0 : username.length)}/30</div>
+            </div>
+          )}
+          
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs text-purple-300 mb-1" htmlFor="birthdate">Date of birth</label>
@@ -593,13 +647,21 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose, userId }) => {
         
         {/* Actions */}
         <div className="flex gap-3 mt-8 justify-end">
-          {isSelf && !editMode && (
+          {isSelf && !editMode && username && username !== 'Profile not created' && (
             <button className="bg-gradient-to-r from-purple-400 to-purple-300 text-[#18122B] font-bold px-6 py-2 rounded-xl shadow hover:from-purple-500 hover:to-purple-400" onClick={() => setEditMode(true)}>Edit Profile</button>
           )}
-          {isSelf && editMode && (
+          {isSelf && (editMode || !username || username === 'Profile not created') && (
             <>
-              <button className="bg-gradient-to-r from-green-400 to-green-300 text-[#18122B] font-bold px-6 py-2 rounded-xl shadow hover:from-green-500 hover:to-green-400" onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save'}</button>
-              <button className="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold px-6 py-2 rounded-xl shadow" onClick={() => setEditMode(false)} disabled={loading}>Cancel</button>
+              <button 
+                className="bg-gradient-to-r from-green-400 to-green-300 text-[#18122B] font-bold px-6 py-2 rounded-xl shadow hover:from-green-500 hover:to-green-400" 
+                onClick={handleSave} 
+                disabled={loading || !username || username.trim() === ''}
+              >
+                {loading ? 'Saving...' : (username && username !== 'Profile not created' ? 'Save' : 'Create Profile')}
+              </button>
+              {username && username !== 'Profile not created' && (
+                <button className="bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold px-6 py-2 rounded-xl shadow" onClick={() => setEditMode(false)} disabled={loading}>Cancel</button>
+              )}
             </>
           )}
           <button className="bg-none border border-purple-400 text-purple-300 font-bold px-6 py-2 rounded-xl shadow" onClick={handleClose}>Close</button>

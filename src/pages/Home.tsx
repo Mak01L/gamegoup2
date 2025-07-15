@@ -432,7 +432,7 @@ const Home: React.FC = () => {
       
       {/* Compact sidebar - Hidden on mobile */}
       {showSidebar && (
-        <div className="w-[160px] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
+        <div className="w-[240px] glass-surface-strong border-r border-primary-500/20 flex flex-col z-20 animate-slide-in-left shadow-elevated">
           <PinnedRoomsSidebar />
         </div>
       )}
